@@ -99,11 +99,12 @@ void timer_sleep(int64_t ticks)
 	int64_t start = timer_ticks();
 	// 시작하는 시간 = 현재시간.
 	ASSERT(intr_get_level() == INTR_ON); // 인터럽트가 켜져있는지 여부 확인
-	printf("타이머 슬립 테스트1 %d\n", start);
-	printf("타이머 슬립 테스트2 %d\n", ticks);
-	if (timer_elapsed(start) < ticks)
-		printf("타이머 슬립 테스트3 %d\n", start + ticks);
-	thread_sleep(start + ticks);
+	if (ticks < 0)
+		return;
+	else if (ticks == 0)
+		thread_yield();
+	else
+		thread_sleep(start + ticks);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -136,9 +137,7 @@ timer_interrupt(struct intr_frame *args UNUSED)
 {
 	ticks++;
 	thread_tick();
-
-	min_ticks = get_next_tick_to_awake(); // 최소시간
-	thread_awake(min_ticks);			  // min_ticks에 일어나야할 애들 깨우기
+	thread_awake(ticks); // min_ticks에 일어나야할 애들 깨우기
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

@@ -43,10 +43,10 @@ static struct lock tid_lock;
 static struct list destruction_req;
 
 /* Statistics. */
-static long long idle_ticks;			/* # of timer ticks spent idle. */
-static long long kernel_ticks;			/* # of timer ticks in kernel threads. */
-static long long user_ticks;			/* # of timer ticks in user programs. */
-int64_t next_tick_to_awake = INT64_MAX; /*sleep_list에서 대기 중인 스레드들의 wakeup_tick 값 중 최소값을 저장*/
+static long long idle_ticks;				   /* # of timer ticks spent idle. */
+static long long kernel_ticks;				   /* # of timer ticks in kernel threads. */
+static long long user_ticks;				   /* # of timer ticks in user programs. */
+static int64_t next_tick_to_awake = INT64_MAX; /*sleep_list에서 대기 중인 스레드들의 wakeup_tick 값 중 최소값을 저장*/
 
 /* Scheduling. */
 #define TIME_SLICE 4		  /* # of timer ticks to give each thread. */
@@ -615,27 +615,22 @@ allocate_tid(void)
 void thread_sleep(int64_t ticks)
 {
 	struct thread *curr = thread_current();
-	printf("쓰레드 슬립 체크\n");
 	enum intr_level old_level;
 	old_level = intr_disable();
 	if (curr != idle_thread)
 	{
+		thread_current()->status = THREAD_BLOCKED;
 		curr->wakeup_tick = ticks;
 		list_push_back(&sleep_list, &curr->elem);
+		schedule();
 	}
-	printf("11id: %d, status : %d\n", curr->tid, curr->status);
 	intr_set_level(old_level);
 }
 
-void update_next_tick_to_awake(int64_t ticks)
-{
-	next_tick_to_awake = ticks;
-}
 void thread_awake(int64_t ticks)
 {
 	struct list_elem *st_elem = list_begin(&sleep_list);
-	struct thread *curr = list_entry(st_elem, struct thread, elem);
-	int64_t next_ticks = INT64_MAX;
+	struct thread *curr;
 	/* sleep list의 모든 entry 를 순회하며 다음과 같은 작업을 수행한다.
 	ticks가 스레드의 wakeuptick보다 크거나 같다면 해당 스레드를 슬립 큐에서 제거하고
 	unblock 한다.
@@ -644,27 +639,18 @@ void thread_awake(int64_t ticks)
 	*/
 	if (!list_empty(&sleep_list))
 	{
-		while (st_elem->next == NULL)
+		while (st_elem->next != NULL)
 		{
+			curr = list_entry(st_elem, struct thread, elem);
 			if (curr->wakeup_tick <= ticks)
 			{
-				list_remove(st_elem); /* 해당 스레드를 sleep list에서 제거한다.*/
-				thread_unblock(curr); /*block을 unblock하고 ready_list에 넣는다.*/
+				st_elem = list_remove(st_elem); /* 해당 스레드를 sleep list에서 제거한다.*/
+				thread_unblock(curr);			/*block을 unblock하고 ready_list에 넣는다.*/
 			}
 			else if (curr->wakeup_tick > ticks)
 			{
-				if (next_ticks > curr->wakeup_tick)
-				{
-					next_ticks = curr->wakeup_tick;
-				}
-				st_elem = list_next(&sleep_list);
+				st_elem = list_next(st_elem);
 			}
 		}
-		update_next_tick_to_awake(next_ticks);
 	}
-}
-
-int64_t get_next_tick_to_awake(void)
-{
-	return next_tick_to_awake;
 }
