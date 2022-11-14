@@ -83,6 +83,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Pintos의 모든 thread는 Doubley linked list로 관리된다. 
 /* List element. */
 struct list_elem {
 	struct list_elem *prev;     /* Previous list element. */
@@ -104,6 +105,7 @@ struct list {
 	((STRUCT *) ((uint8_t *) &(LIST_ELEM)->next     \
 		- offsetof (STRUCT, MEMBER.next)))
 
+// list 자료 구조를 초기화한다.
 void list_init (struct list *);
 
 /* List traversal. */

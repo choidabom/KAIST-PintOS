@@ -14,7 +14,7 @@ static void test_sleep (int thread_cnt, int iterations);
 
 void
 test_alarm_single (void) 
-{
+{ // thread_cnt => 스레드의 개수, iterations => 반복 횟수 
   test_sleep (5, 1);
 }
 
@@ -84,20 +84,23 @@ test_sleep (int thread_cnt, int iterations)
       struct sleep_thread *t = threads + i;
       char name[16];
       
-      t->test = &test;
-      t->id = i;
-      t->duration = (i + 1) * 10;
-      t->iterations = 0;
+      t->test = &test;            
+      t->id = i;                  
+      t->duration = (i + 1) * 10;   
+      t->iterations = 0;            
 
       snprintf (name, sizeof name, "thread %d", i);
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
   
   /* Wait long enough for all the threads to finish. */
+  /* main thread가 만들어준 n개의 스레드를 재움 = >??? */
+  /* timer_sleep이 잘 안 돌아간다면 ??? */
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
 
   /* Acquire the output lock in case some rogue thread is still
      running. */
+  /* 우리가 아는 lock => 즉, lock을 얻음  */
   lock_acquire (&test.output_lock);
 
   /* Print completion order. */
@@ -115,6 +118,10 @@ test_sleep (int thread_cnt, int iterations)
       msg ("thread %d: duration=%d, iteration=%d, product=%d",
            t->id, t->duration, t->iterations, new_prod);
       
+
+      // 평가 요소지 않을까? 
+      // 원자성: 실패하던가 완전 성공하던가 , 한 번에 일어나는 일이 더이상 쪼개지지 않는다는 것을 보장하라 
+      // lock, unlock => 원자성을 보장하기 위하여 
       if (new_prod >= product)
         product = new_prod;
       else
@@ -143,10 +150,19 @@ sleeper (void *t_)
 
   for (i = 1; i <= test->iterations; i++) 
     {
-      int64_t sleep_until = test->start + i * t->duration;
-      timer_sleep (sleep_until - timer_ticks ());
-      lock_acquire (&test->output_lock);
-      *test->output_pos++ = t->id;
-      lock_release (&test->output_lock);
+
+      int64_t sleep_until = test->start + i * t->duration;  
+      
+      timer_sleep (sleep_until - timer_ticks ()); 
+            
+      // output_lock: test를 하기 위해서 원자성이 보장되어야하는데, 
+      // 원자성을 보장하기 위해서 lock을 사용하는데 그게 output_lock 
+      // test를 정상적으로 출력되기 위해서 사용하기 위한 lock 
+      lock_acquire (&test->output_lock);  // lock 느낌 
+      printf("iter: %d / thread: %d\n", i, t->id);
+      *test->output_pos++ = t->id; // 스레드의 output_pos 포인터를 1씩 증가시켜면 스레드의 id를 넣어줌 
+      lock_release (&test->output_lock);  // unlock 느낌 
     }
 }
+
+// lock_acquire와 lock_release가 수정되어야하는 함수인지를 알아야할 것 같음 

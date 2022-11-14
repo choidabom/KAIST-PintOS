@@ -54,6 +54,7 @@ is_tail (struct list_elem *elem) {
 }
 
 /* Initializes LIST as an empty list. */
+// list 자료구조를 초기화한다. 
 void
 list_init (struct list *list) {
 	ASSERT (list != NULL);
@@ -191,6 +192,7 @@ list_splice (struct list_elem *before,
 
 /* Inserts ELEM at the beginning of LIST, so that it becomes the
    front in LIST. */
+// elem을 list의 처음에 삽입한다. 
 void
 list_push_front (struct list *list, struct list_elem *elem) {
 	list_insert (list_begin (list), elem);
@@ -198,6 +200,7 @@ list_push_front (struct list *list, struct list_elem *elem) {
 
 /* Inserts ELEM at the end of LIST, so that it becomes the
    back in LIST. */
+// elem을 list의 끝에 삽입한다. 
 void
 list_push_back (struct list *list, struct list_elem *elem) {
 	list_insert (list_end (list), elem);
@@ -247,6 +250,7 @@ list_remove (struct list_elem *elem) {
 
 /* Removes the front element from LIST and returns it.
    Undefined behavior if LIST is empty before removal. */
+// list의 처음 list_elem을 반환한다. 
 struct list_elem *
 list_pop_front (struct list *list) {
 	struct list_elem *front = list_front (list);
@@ -256,6 +260,7 @@ list_pop_front (struct list *list) {
 
 /* Removes the back element from LIST and returns it.
    Undefined behavior if LIST is empty before removal. */
+// list의 마지막 list_elem을 반환한다. 
 struct list_elem *
 list_pop_back (struct list *list) {
 	struct list_elem *back = list_back (list);

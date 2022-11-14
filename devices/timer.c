@@ -76,7 +76,8 @@ timer_ticks (void) {
 	enum intr_level old_level = intr_disable ();
 	int64_t t = ticks;
 	intr_set_level (old_level);
-	barrier ();
+	barrier ();	// 순서가 바뀔 수 있기 때문에 입력해준 순서대로 다 해 임마, 기준을 만들어준 것, 결국에는 time_tick의 시간을 정확하게 출려하기 위함 
+	// tick의 일관성을 유지하기 위해 
 	return t;
 }
 
@@ -88,14 +89,22 @@ timer_elapsed (int64_t then) {
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
+// sleep을 얼마 동안 할래? 
+// 주어진 tick만큼 thread_yield()를 통해 CPU를 양보
+// 주어진 tick 경과후 ready_list에 삽입된다. 
 void
 timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
-
-	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+	int64_t start = timer_ticks ();			// os가 부팅되고 경과된 시간/시계 역할
+	// (인터럽트가 OFF이면 안 되겠지) 	
+	ASSERT (intr_get_level () == INTR_ON);	// 인터럽트의 on/off 여부 확인 
+	while (timer_elapsed (start) < ticks)	// 시간이 얼마나 지났는지 확인하는 함수 
+		thread_yield ();	// 얘는 busy waiting이니까 바꿔요 
 }
+/* 
+timer_ticks(): 현재 진행되고 있는 tick의 값을 반환
+thread_yield(): CPU를 양보하고, thread를 ready_list에 삽입
+timer_elased(): 인자로 전달된 tick이후 몇 tick이 지났는지 반환
+*/
 
 /* Suspends execution for approximately MS milliseconds. */
 void
@@ -184,3 +193,4 @@ real_time_sleep (int64_t num, int32_t denom) {
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
 }
+

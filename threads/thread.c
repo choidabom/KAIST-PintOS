@@ -26,12 +26,16 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
+// THREAD_READY 상태의 thread를 관리하는 list
+// 프로세스의 리스트는 THREAD_READY 상태에 있다.
+// 즉 프로세스는 실행 준비 상태에 있고, 실제로 실행되고 있는 상태는 아니다. 
 static struct list ready_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
 
 /* Initial thread, the thread running init.c:main(). */
+// init.c에서 main()을 실행하는 스레드
 static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
@@ -105,9 +109,9 @@ thread_init (void) {
 	};
 	lgdt (&gdt_ds);
 
-	/* Init the globla thread context */
+	/* Ilist_initnit the globla thread context */
 	lock_init (&tid_lock);
-	list_init (&ready_list);
+	 (&ready_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -122,7 +126,7 @@ thread_init (void) {
 void
 thread_start (void) {
 	/* Create the idle thread. */
-	struct semaphore idle_started;
+	struct semaphore idle_started; 
 	sema_init (&idle_started, 0);
 	thread_create ("idle", PRI_MIN, idle, &idle_started);
 
@@ -183,7 +187,7 @@ thread_create (const char *name, int priority,
 	tid_t tid;
 
 	ASSERT (function != NULL);
-
+ 
 	/* Allocate thread. */
 	t = palloc_get_page (PAL_ZERO);
 	if (t == NULL)
@@ -240,6 +244,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
+	// ready_list: CPU를 기다리는 쓰레드들의 배열
+	// 새로운 쓰레드느 리스트 맨뒤에 추가 (list_push_back())
 	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
@@ -294,27 +300,30 @@ thread_exit (void) {
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
+
 void
 thread_yield (void) {
-	struct thread *curr = thread_current ();
+	struct thread *curr = thread_current ();	// 현재 실행되고 있는 thread를 반환
 	enum intr_level old_level;
 
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
+	old_level = intr_disable (); 	// 인터럽트를 비활성하고 이전 인터럽트의 상태를 반환
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
-	intr_set_level (old_level);
+		list_push_back (&ready_list, &curr->elem);	// 주어진 entry를 list의 마지막에 삽입
+	do_schedule (THREAD_READY);		// 컨텍스트 스위치 작업을 수행 
+	intr_set_level (old_level); 	// 인자로 전달된 인터럽트 상태로 인터럽트를 설정하고 이전 인터럽트 상태를 반환 
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
+// 현재 thread의 우선순위를 new_priority로 변경 
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
 }
 
 /* Returns the current thread's priority. */
+// 현재 thread의 우선순위를 반환 
 int
 thread_get_priority (void) {
 	return thread_current ()->priority;

@@ -1,6 +1,7 @@
-# -*- makefile -*-
+# *makefile -*
 
 # Test names.
+
 tests/threads_TESTS = $(addprefix tests/threads/,alarm-single		\
 alarm-multiple alarm-simultaneous alarm-priority alarm-zero		\
 alarm-negative priority-change priority-donate-one			\
@@ -10,6 +11,7 @@ priority-fifo priority-preempt priority-sema priority-condvar		\
 priority-donate-chain)
 
 # Sources for tests.
+
 tests/threads_SRC  = tests/threads/tests.c
 tests/threads_SRC += tests/threads/alarm-wait.c
 tests/threads_SRC += tests/threads/alarm-simultaneous.c
