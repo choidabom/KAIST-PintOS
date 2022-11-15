@@ -71,6 +71,8 @@ sema_down (struct semaphore *sema) {
 		list_push_back (&sema->waiters, &thread_current ()->elem);
 		thread_block ();
 	}
+
+	// sem->value가 양수인 경우 while문을 탈출하고 sema->value--; 를 진행하는 것인가?
 	sema->value--;
 	intr_set_level (old_level);
 }
@@ -248,6 +250,7 @@ struct semaphore_elem {
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
    code to receive the signal and act upon it. */
+// 조건 변수 COND를 초기화한다. 조건 변수를 사용하면 코드 하나가 조건을 신호하고 협력 코드가 신호를 수신하고 이에 따라 동작할 수 있다. 
 void
 cond_init (struct condition *cond) {
 	ASSERT (cond != NULL);
@@ -275,6 +278,7 @@ cond_init (struct condition *cond) {
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+// 
 void
 cond_wait (struct condition *cond, struct lock *lock) {
 	struct semaphore_elem waiter;
