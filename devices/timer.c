@@ -43,6 +43,9 @@ void timer_init(void)
 	outb(0x40, count >> 8);
 
 	intr_register_ext(0x20, timer_interrupt, "8254 Timer");
+	// 1번째 인자 : 인터럽트 핸들러를 호출할 외부 인터럽트
+	// 2번째 인자 : 호출할 인터럽트 핸들러
+	// 3번째 인자 : 저장할 이름(디버그할 때 - 구분목적)
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
