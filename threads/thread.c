@@ -43,10 +43,9 @@ static struct lock tid_lock;
 static struct list destruction_req;
 
 /* Statistics. */
-static long long idle_ticks;				   /* # of timer ticks spent idle. */
-static long long kernel_ticks;				   /* # of timer ticks in kernel threads. */
-static long long user_ticks;				   /* # of timer ticks in user programs. */
-static int64_t next_tick_to_awake = INT64_MAX; /*sleep_list에서 대기 중인 스레드들의 wakeup_tick 값 중 최소값을 저장*/
+static long long idle_ticks;   /* # of timer ticks spent idle. */
+static long long kernel_ticks; /* # of timer ticks in kernel threads. */
+static long long user_ticks;   /* # of timer ticks in user programs. */
 
 /* Scheduling. */
 #define TIME_SLICE 4		  /* # of timer ticks to give each thread. */
@@ -153,7 +152,7 @@ void thread_tick(void)
 
 	/* Enforce preemption. */
 	if (++thread_ticks >= TIME_SLICE)
-		intr_yield_on_return();
+		intr_yield_on_return(); // thread_yield시킨다.
 }
 
 /* Prints thread statistics. */
@@ -213,6 +212,9 @@ tid_t thread_create(const char *name, int priority,
 	thread_unblock(t);
 	if (t->priority > curr->priority)
 		thread_yield();
+	// unblock함수에서는 block -> unblock으로 status가 변경되면서 readylist로 들어간다.
+	// 만약 if문에서 t가 더 클 경우 curr이 yield 되더라도 curr이 t가 존재하기 전 readylist에서 가장 큰 thread였기 때문에 t는 readylist에서도 가장 큰 thread가 될것.
+	// 따라서 yield가 되면 t가 바로 running thread가 될 것.
 	return tid;
 }
 
@@ -248,10 +250,7 @@ void thread_unblock(struct thread *t)
 	old_level = intr_disable();
 	ASSERT(t->status == THREAD_BLOCKED);
 	// list_push_back(&ready_list, &t->elem);
-	if (t != idle_thread)
-	{
-		list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
-	}
+	list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
 	intr_set_level(old_level);
 }
@@ -315,8 +314,8 @@ void thread_yield(void)
 	ASSERT(!intr_context());
 
 	old_level = intr_disable();
-	if (curr != idle_thread)
-		list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);
+	// if (curr != idle_thread)
+	list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
@@ -434,7 +433,7 @@ init_thread(struct thread *t, const char *name, int priority)
 {
 	ASSERT(t != NULL);
 	ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
-	ASSERT(name != NULL);
+	ASSERT(name != NULL)
 
 	memset(t, 0, sizeof *t);
 	t->status = THREAD_BLOCKED;
@@ -653,12 +652,6 @@ void thread_awake(int64_t ticks)
 {
 	struct list_elem *st_elem = list_begin(&sleep_list);
 	struct thread *curr;
-	/* sleep list의 모든 entry 를 순회하며 다음과 같은 작업을 수행한다.
-	ticks가 스레드의 wakeuptick보다 크거나 같다면 해당 스레드를 슬립 큐에서 제거하고
-	unblock 한다.
-
-	작다면 update_next_tick_to_awake() 를 호출한다.
-	*/
 	if (!list_empty(&sleep_list))
 	{
 		while (st_elem->next != NULL)
@@ -666,8 +659,8 @@ void thread_awake(int64_t ticks)
 			curr = list_entry(st_elem, struct thread, elem);
 			if (curr->wakeup_tick <= ticks)
 			{
-				st_elem = list_remove(st_elem); /* 해당 스레드를 sleep list에서 제거한다.*/
-				thread_unblock(curr);			/*block을 unblock하고 ready_list에 넣는다.*/
+				st_elem = list_remove(st_elem);
+				thread_unblock(curr);
 			}
 			else if (curr->wakeup_tick > ticks)
 			{
