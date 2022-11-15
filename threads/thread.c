@@ -123,6 +123,7 @@ thread_init (void) {
 
 /* Starts preemptive thread scheduling by enabling interrupts.
    Also creates the idle thread. */
+// init.c에서 main 스레드가 init 작업을 할 때 thread_start()가 사용됨 
 void
 thread_start (void) {
 	/* Create the idle thread. */
