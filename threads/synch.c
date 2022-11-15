@@ -41,6 +41,7 @@
 
    - up or "V": increment the value (and wake up one waiting
    thread, if any). */
+// semaphore를 주어진 value로 초기화
 void
 sema_init (struct semaphore *sema, unsigned value) {
 	ASSERT (sema != NULL);
@@ -57,6 +58,7 @@ sema_init (struct semaphore *sema, unsigned value) {
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. This is
    sema_down function. */
+// semaphore를 요청하고 획득했을 때 value를 1 낮춤
 void
 sema_down (struct semaphore *sema) {
 	enum intr_level old_level;
@@ -102,6 +104,7 @@ sema_try_down (struct semaphore *sema) {
    and wakes up one thread of those waiting for SEMA, if any.
 
    This function may be called from an interrupt handler. */
+// semaphore를 반환하고 value를 1 높임   
 void
 sema_up (struct semaphore *sema) {
 	enum intr_level old_level;
@@ -112,7 +115,6 @@ sema_up (struct semaphore *sema) {
 	if (!list_empty (&sema->waiters))
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
 					struct thread, elem));
-					// list_entry => 
 	sema->value++;
 	intr_set_level (old_level);
 }
