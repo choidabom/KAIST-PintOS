@@ -151,16 +151,9 @@ void thread_sleep(int64_t ticks);
 /* 슬립큐에서 깨워야할 스레드를 깨움 */
 void thread_awake(int64_t ticks);
 
-/* 최소 틱을 가진 스레드 저장 */
-void update_next_tick_to_awake(int64_t ticks);
-
-/* thread.c의 next_tick_to_awake 반환 */
-int64_t get_next_tick_to_awake(void);
-
-/* 현재 수행 중인 스레드와 가장 높은 우선순위의 스레드의 우선순위를 비교하여 스케줄링 */
-void test_max_priority(void);
-
 /* 인자로 주어진 스레드들의 우선순위를 비교 */
 bool cmp_priority(const struct list_elem *a,
 				  const struct list_elem *b, void *aux UNUSED);
+
+void test_max_priority(void);
 #endif /* threads/thread.h */
