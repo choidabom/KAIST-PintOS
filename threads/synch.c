@@ -195,8 +195,16 @@ void lock_acquire(struct lock *lock)
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
 
+	if (!(lock->holder == NULL))
+	{
+		thread_current()->wait_on_lock = lock;
+		// 획득하고자 하는 lock의 주소를 저장.
+		list_insert_ordered(&lock->holder->donations, &thread_current()->donation_elem, cmp_dona_priority, NULL);
+		donate_priority();
+	}
 	sema_down(&lock->semaphore);
 	// 해당 thread에 접근하기 위해서는 일단 lock을 걸어야 함.
+	thread_current()->wait_on_lock = NULL;
 	lock->holder = thread_current();
 }
 
@@ -229,7 +237,8 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
-
+	/* remove_with_lock() 함수 추가 */
+	/* refresh_priority() 함수 추가 */
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
