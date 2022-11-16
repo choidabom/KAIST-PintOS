@@ -69,7 +69,6 @@ void sema_down(struct semaphore *sema)
 	while (sema->value == 0)
 	// 현재 cpu(공유자원)를 차지하고 있어요
 	{
-		// list_push_back(&sema->waiters, &thread_current()->elem);
 		list_insert_ordered(&sema->waiters, &thread_current()->elem, cmp_priority, NULL);
 		thread_block();
 	}
@@ -115,6 +114,8 @@ void sema_up(struct semaphore *sema)
 	old_level = intr_disable();
 	if (!list_empty(&sema->waiters))
 	{
+		// list_sort(&sema->waiters, cmp_sem_priority, NULL);
+		list_sort(&sema->waiters, cmp_priority, NULL);
 		thread_unblock(list_entry(list_pop_front(&sema->waiters), struct thread, elem));
 	}
 	sema->value++;
@@ -195,8 +196,16 @@ void lock_acquire(struct lock *lock)
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
 
+	if (lock->holder != NULL)
+	{
+		thread_current()->wait_on_lock = lock;
+		// 획득하고자 하는 lock의 주소를 저장.
+		list_insert_ordered(&lock->holder->donations, &thread_current()->donation_elem, cmp_priority, NULL);
+		donate_priority();
+	}
 	sema_down(&lock->semaphore);
 	// 해당 thread에 접근하기 위해서는 일단 lock을 걸어야 함.
+	thread_current()->wait_on_lock = NULL;
 	lock->holder = thread_current();
 }
 
@@ -229,7 +238,8 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
-
+	remove_with_lock(lock);
+	refresh_priority();
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
