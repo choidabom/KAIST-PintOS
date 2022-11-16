@@ -332,8 +332,6 @@ void cond_broadcast(struct condition *cond, struct lock *lock)
 
 	while (!list_empty(&cond->waiters))
 		cond_signal(cond, lock);
-<<<<<<< HEAD
-=======
 }
 
 bool cmp_sem_priority(const struct list_elem *a,
@@ -347,5 +345,4 @@ bool cmp_sem_priority(const struct list_elem *a,
 
 	return (ta->priority > tb->priority);
 	/* 해당 condition variable을 기다리는 세마포어 리스트를 가장 높은 우선순위를 가지는 스레드의 우선순위 순으로 정렬하도록 구현 */
->>>>>>> 4ba16250316ef87caae3b9a39c4bf2d87679b463
 }
