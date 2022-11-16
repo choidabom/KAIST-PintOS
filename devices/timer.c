@@ -140,7 +140,7 @@ timer_interrupt(struct intr_frame *args UNUSED)
 {
 	ticks++;
 	thread_tick();
-	thread_awake(ticks); // min_ticks에 일어나야할 애들 깨우기
+	thread_awake(ticks); // 깨우기
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
