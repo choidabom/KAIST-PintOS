@@ -237,8 +237,8 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
-	/* remove_with_lock() 함수 추가 */
-	/* refresh_priority() 함수 추가 */
+	remove_with_lock(lock);
+	refresh_priority();
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }

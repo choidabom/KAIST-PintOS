@@ -449,6 +449,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
 	t->init_priority = priority;
+	list_init(&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -731,10 +732,24 @@ void remove_with_lock(struct lock *lock)
 	struct list donation_list = lock->holder->donations;
 	if (!list_empty(&donation_list))
 	{
-		for (struct list_elem *s = list_begin(&donation_list); list_next(s) != NULL; s = list_next(s))
+		struct list_elem *s;
+		struct thread *t;
+
+		s = list_begin(&donation_list);
+		while (s != list_end(&donation_list))
 		{
-			if (list_entry(s, struct thread, donation_elem)->wait_on_lock == lock)
-				list_remove(s);
+			// t = list_entry(s, struct thread, donation_elem);
+			// if (!is_thread(t))
+			// {
+			// 	return;
+			// }
+
+			// if (t->wait_on_lock == lock)
+			// {
+			// 	s = list_remove(s);
+			// 	continue;
+			// }
+			s = list_next(s);
 		}
 	}
 }
