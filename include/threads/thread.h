@@ -96,6 +96,9 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element for all threads list. */
 
+	/* 깨어나야 할 tick 저장 */
+	int64_t wakeup_tick;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -143,5 +146,8 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void thread_sleep(int64_t ticks);				/* 실행 중인 스레드를 sleep으로 만듬 */
+void thread_awake(int64_t ticks);				/* sleep_list에서 깨워야할 thread를 깨움 */
 
 #endif /* threads/thread.h */

@@ -44,6 +44,10 @@ static struct lock tid_lock;
 /* Thread destruction requests */
 static struct list destruction_req;
 
+/* Sleep list => busy waiting 문제점을 해결하기 위한 sleep/wakeup */
+static struct list sleep_list;
+
+
 /* Statistics. */
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
