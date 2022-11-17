@@ -99,7 +99,6 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 
 ### 11.19 토
 
-
 ### 11.20 일
 
 ### 11.21 월
@@ -107,3 +106,10 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 ### 11.22 화
 
 ### 11.23 수
+
+### 11.24 목
+
+### 11.25 금
+
+### 11.26 토
+
