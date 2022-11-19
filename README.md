@@ -74,26 +74,33 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 
 ### Priority Scheduling (2) Semaphore, Lock, Condition Variable 구현 
 - Semaphore, Lock, Condition Variable을 사용하여 Priority Scheduling 개선
-  - PintOS는 FIFO 방식을 사용, sychronization 도구들을 기다릴 때 우선순위가 가장 높은 thread가 CPU를 점유하도록 구현 
+  - PintOS는 여러 thread들이 Semaphore, Lock, Condition Variable를 얻기 위해 기다릴 경우 먼저 온 thread가 먼저 사용하는 FIFO 방식을 사용
+  - **Sychronization 도구들을 기다릴 때, 우선순위가 가장 높은 thread가 CPU를 점유하도록 구현** 
 
 
 ### 11.16 수
 
 ### Priority Scheduling (3) Priority donation(Prority inversion problem) 구현 
-- **문제점: priority가 높은 thread가 priority가 낮은 thread를 기다리는 현상**
+- **문제점: 여러 thread가 lock을 요청하고 점유하는 과정에서 Priority Inversion 발생**
+  - priority가 높은 thread가 priority가 낮은 thread를 기다리는 현상
 - **문제 해결: Priority donation**
   - Multiple donation
     - thread가 두 개 이상의 lock 보유 시 각 lock을 획득하고자 하는 thread들에게 donation 발생가능
+    - 예시) thread L이 lock A와 lock B를 점유하고 있을 때 thread M이 lock A를 요청, thread H가 lock B를 요청하는 상황
+    
   - Nested donation
     - 여러 번의 단계적 donation이 일어나는 상황
 
+### 11.17 목
+#### Project 1 결과
+- 10:00 ~ 11:00 발표 진행
+<p align="center"><img width="50%" src="https://user-images.githubusercontent.com/48302257/202519011-3aa9d8eb-9f14-466c-a3ac-fa41bfb67ea1.png"/></p>
 
 
 ## SW Jungle Week09 (2022.11.17 ~ 11.28)
 ## PROJECT 2: USER PROGRAMS
 
 ### WIL (Weekly I Learned)
-### 11.17 목
 
 ### 11.18 금
 
