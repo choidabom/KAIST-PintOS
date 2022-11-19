@@ -715,15 +715,6 @@ void donate_priority(void)
 		a = b;
 		depth++;
 	}
-	// struct thread *cur = thread_current();
-	// for (int i = 0; i < 8; i++)
-	// {
-	// 	if (cur->wait_on_lock == NULL)
-	// 		break;
-	// 	struct thread *hold = cur->wait_on_lock->holder;
-	// 	hold->priority = cur->priority;
-	// 	cur = hold;
-	// }
 	/* priority donation을 수행하는 함수를 구현한다.
 현재 스레드가 기다리고 있는 lock 과 연결된 모든 스레드들을 순회하며
 현재 스레드의 우선순위를 lock을 보유하고 있는 스레드에게 기부한다.
@@ -733,12 +724,13 @@ void donate_priority(void)
 
 void remove_with_lock(struct lock *lock)
 {
-	if (!list_empty(&lock->holder->donations))
+	struct list *donation_list = &lock->holder->donations;
+	if (!list_empty(donation_list))
 	{
 		struct list_elem *s;
 
-		s = list_begin(&lock->holder->donations);
-		while (s != list_end(&lock->holder->donations))
+		s = list_begin(donation_list);
+		while (s != list_end(donation_list))
 		{
 			struct thread *t = list_entry(s, struct thread, donation_elem);
 			if (t->wait_on_lock == lock)
