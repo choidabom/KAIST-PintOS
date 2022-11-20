@@ -38,6 +38,7 @@ process_init (void) {
  * before process_create_initd() returns. Returns the initd's
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
+/* command line에서 받은 arguments를 통해 실행하고자 하는 파일에 대한 process를 만드는 과정의 시작 */
 tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
@@ -51,6 +52,7 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
 	/* Create a new thread to execute FILE_NAME. */
+	/* thread_create의 역할은 file_name을 이름으로 하고 PRI_DEFAULT를 우선순위 값으로 가지는 새로운 스레드가 생성되고 tid를 반환, 그리고 스레는 fn_copy를 인자로 받는 initd라는 함수를 실행시킴 */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -177,9 +179,11 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
 	/* And then load the binary */
+	/* 메모리를 할당받고 user program을 적재*/
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
+	/* load가 실패하면 종료 */
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
@@ -199,12 +203,17 @@ process_exec (void *f_name) {
  *
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
+
 int
 process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	return -1;
+
+	/* Before Assignment: The OS quits without waiting for the process to finish!!! */
+	
+
+	return -1; 
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -320,6 +329,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * Stores the executable's entry point into *RIP
  * and its initial stack pointer into *RSP.
  * Returns true if successful, false otherwise. */
+/* FILE_NAME에서 현재 스레드로 ELF 실행 파일을 load 한다. 실행 파일의 진입점(entry)을 *RIP에 저장하고 초기 스택 포인터를 *RSP에 저장한다. 성공하면 true를 반환하고, 그렇지 않으면 false를 반환한다.*/
 static bool
 load (const char *file_name, struct intr_frame *if_) {
 	struct thread *t = thread_current ();

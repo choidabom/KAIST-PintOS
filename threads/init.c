@@ -65,6 +65,10 @@ static void print_stats (void);
 int main (void) NO_RETURN;
 
 /* Pintos main program. */
+/* Pintos의 main program이다. */
+/* 즉, Pintos가 시작되면 init.c의 main() 함수가 실행된다고 보면 된다.
+여기서는 메모리, 쓰레드, page table 등 초기화 해주는 작업이 진행된다.
+Project 2에서는 USERPROG 블록 안에 있는 init 함수도 실행해야함.*/
 int
 main (void) {
 	uint64_t mem_end;
@@ -119,6 +123,9 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
+	/* kernel command line에 정의된 action을 실행하는에 argv를 인자로 받아간다. */
+	/* run_actions을 실행했을 때, Is user program?이라는 질문에서 
+	user program이면 run_task()를 실행하고, 아니면 Test Program Execution을 실행한다. */
 	run_actions (argv);
 
 	/* Finish up. */
@@ -235,15 +242,18 @@ parse_options (char **argv) {
 }
 
 /* Runs the task specified in ARGV[1]. */
+/* 유저 프로세스 생성 후 핀토스는 프로세스 종료 대기 */
 static void
 run_task (char **argv) {
 	const char *task = argv[1];
 
 	printf ("Executing '%s':\n", task);
 #ifdef USERPROG
+	/* thread_tests는 boolean 타입으로 main() 함수에서 parse_options 함수에서 argv를 parsing할 때 조건에 따라 true로 바뀌게 된다. */
 	if (thread_tests){
 		run_test (task);
 	} else {
+		/* 자식 프로세스가 종료될 때까지 대기(현재는 구현이 안 됨)*/
 		process_wait (process_create_initd (task));
 	}
 #else
@@ -254,6 +264,7 @@ run_task (char **argv) {
 
 /* Executes all of the actions specified in ARGV[]
    up to the null pointer sentinel. */
+/* kernel command line에 정의된 */
 static void
 run_actions (char **argv) {
 	/* An action. */
@@ -264,6 +275,7 @@ run_actions (char **argv) {
 	};
 
 	/* Table of supported actions. */
+	/* user program 일 경우 run_task() 호출 */
 	static const struct action actions[] = {
 		{"run", 2, run_task},
 #ifdef FILESYS
