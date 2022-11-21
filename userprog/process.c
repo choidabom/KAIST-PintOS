@@ -166,7 +166,7 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-
+	printf("ddddddddddddddd");
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -211,7 +211,9 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       implementing the process_wait. */
 
 	/* Before Assignment: The OS quits without waiting for the process to finish!!! */
-	
+	while(1){
+		continue;
+	}
 
 	return -1; 
 }
