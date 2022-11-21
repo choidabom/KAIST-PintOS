@@ -343,10 +343,11 @@ void test_max_priority(void)
 	if (!list_empty(&ready_list))
 	{
 		max_ready = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (max_ready->priority > thread_current()->priority)
+		if (max_ready->priority > thread_current()->priority){
 			if (thread_current() != idle_thread){
 				thread_yield();
-			}
+		  }
+    }
 	}
 }
 
