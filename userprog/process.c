@@ -18,6 +18,8 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "lib/string.h"
+#include "lib/stdio.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -189,7 +191,7 @@ int process_exec(void *f_name)
 
 	/* And then load the binary */
 	success = load(f_name, &_if);
-
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	// 왜 void인데 char*인 file_name이 됨?
 	palloc_free_page(file_name);
 	if (!success)
@@ -214,10 +216,12 @@ int process_wait(tid_t child_tid UNUSED)
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while (1)
-	{
-		continue;
-	}
+	// while (1)
+	// {
+	// 	continue;
+	// }
+	thread_set_priority(PRI_DEFAULT - 1);
+	// thread_current()->priority = ;
 
 	return -1;
 }
@@ -441,6 +445,7 @@ load(const char *file_name, struct intr_frame *if_)
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
+
 	uintptr_t stack_ptr = if_->rsp;
 	char *argv[LOADER_ARGS_LEN / 2 + 1];
 	char *token_argv[LOADER_ARGS_LEN / 2 + 1];
@@ -449,54 +454,68 @@ load(const char *file_name, struct intr_frame *if_)
 
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
-	printf("스택 포인터 주소 : %p\n", stack_ptr);
-	printf("배열 주소 : %p\n", argv);
+	// process_name도 token_argv에 넣어서 스택에 넣어주기 위한 과정
+	token_argv[argc] = process_name;
+	argc++;
+
 	if (*next_ptr != NULL)
 	{
 		while (1)
 		{
+			// 인자(token) 분리해주는 과정 & argc 구하기
 			token = strtok_r(NULL, DELIM_CHARS, &next_ptr);
-			stack_ptr -= (strlen(token) + 1);
-			memcpy(stack_ptr, token, strlen(token) + 1);
-			printf("주소 : %p, 토큰 : %s\n", stack_ptr, token);
-			printf("주소 ㅣ %p, 값 : %s 숫자 : %d\n", stack_ptr, stack_ptr, stack_ptr);
-
-			argv[argc] = stack_ptr;
+			token_argv[argc] = token;
+			// printf("순서 확인 %d 확인작업 %s\n", argc, token_argv[argc]);
 			argc++;
-
 			if (*next_ptr == NULL)
 				break;
 		}
-		printf("!!!주소를 저장한 주소!!!! : %p\n", *argv);
-		printf("%d\n", (if_->rsp - stack_ptr));
-		// word-align - 8의 배수로 맞춘다(padding)
+		for (i = argc - 1; i > -1; i--)
+		{
+			stack_ptr -= (strlen(token_argv[i]) + 1);
+			memcpy(stack_ptr, token_argv[i], strlen(token_argv[i]) + 1);
+			argv[i] = stack_ptr;
+		}
+		// word-align - 16의 배수로 맞춘다(padding)
+		// x86-64의 stack alignmet 규칙에 따르면 return address를 제외하고 직전까지의 상황에서 %rsprk 16
 		if ((if_->rsp - stack_ptr) % 8)
 		{
-			stack_ptr -= (8 - ((if_->rsp - stack_ptr) % 8));
+
 			int p_size = (8 - ((if_->rsp - stack_ptr) % 8));
+			stack_ptr -= (8 - ((if_->rsp - stack_ptr) % 8));
 			memset(stack_ptr, 0, p_size);
 		}
-		printf("패딩 주소 :%p, 값 : %s\n", stack_ptr, stack_ptr);
-
+		if (argc % 2)
+		{
+			stack_ptr -= 8;
+			memset(stack_ptr, 0, 8);
+		}
 		// argv의 마지막을 null로 한다 -> 인자을 끝을 알린다.
 		stack_ptr -= 8;
 		memset(stack_ptr, 0, 8);
 
-		// 인자를 저장한 주소를 스택에 저장한다.
-		// for (i = argc; i >= 1; i--)
-		// {
-		// 	stack_ptr -= 8;
-		// 	memcpy(stack_ptr, argv[argc], sizeof(argv[argc]));
-		// 	printf("저장 주소 : %p, 저장 값 : %s\n", stack_ptr, argv[argc]);
-		// }
-	}
+		// // 인자를 저장한 주소를 스택에 저장한다.
+		for (i = argc - 1; i > -1; i--)
+		{
+			stack_ptr -= 8;
+			memcpy(stack_ptr, &argv[i], 8);
+		}
+		// printf("저장 주소 : %p, 저장 값 : %s\n", stack_ptr, argv[argc]);
 
+		// Push Fake Return Address
+		stack_ptr -= 8;
+		memset(stack_ptr, 0, 8);
+	}
+	if_->rsp = stack_ptr;
+	// rsi가 argv의 주소(argv[0]의 주소를 가리키게 하고, rdi를 argc로 설정합니다.
+	if_->R.rdi = argc;
+	if_->R.rsi = argv[0];
+	// size_t sum = if_->rsp - stack_ptr;
 	success = true;
 
 done:
 	/* We arrive here whether the load is successful or not. */
 	file_close(file);
-	hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
 	return success;
 }
 
