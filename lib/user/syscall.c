@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "../syscall-nr.h"
 
+/* 시스템 콜 핸들러 syscall_handler()가 제어권을 얻으면 시스템 콜 번호는 rax에 있고, 
+인자는 %rdi, %rsi, %rdx, %r8, %r9 순서로 전달된다. */
 __attribute__((always_inline))
 static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 		uint64_t a3_, uint64_t a4_, uint64_t a5_, uint64_t a6_) {
@@ -68,73 +70,90 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 			((uint64_t) ARG3), \
 			((uint64_t) ARG4), \
 			0))
+
+/* 0번콜: power-of와 같은 기능으로, pintos를 종료시키는 시스템 콜 */
 void
 halt (void) {
 	syscall0 (SYS_HALT);
 	NOT_REACHED ();
 }
 
+/* 1번콜: 현재 프로세스를 종료시키는 시스템 콜 (Git book: 현재 동작 중인 유저 프로그램을 종료, 커널에 상태를 리턴하면서 종료)*/
 void
 exit (int status) {
 	syscall1 (SYS_EXIT, status);
 	NOT_REACHED ();
 }
 
-pid_t
+/* 2번콜: thread_name이라는 이름을 가진 (현재 프로세스의 복제본인) 새 프로세스를 만들어주는 시스템 콜 */
+/* 자식 프로세스의 pid를 반환해야 함. 유효한 pid가 아닌 경우 0을 반환해야함. */
+pid_t 
 fork (const char *thread_name){
 	return (pid_t) syscall1 (SYS_FORK, thread_name);
 }
+
+/* 3번콜: 현재 프로세스를 실행가능한 프로세스로 변경해주는 시스템 콜 */
 
 int
 exec (const char *file) {
 	return (pid_t) syscall1 (SYS_EXEC, file);
 }
 
+/* 4번콜: 자식의 종료 상태를 가져오는 시스템 콜 */
 int
 wait (pid_t pid) {
 	return syscall1 (SYS_WAIT, pid);
 }
 
+/* 5번콜: 파일을 생성하는 시스템 콜 */
 bool
 create (const char *file, unsigned initial_size) {
 	return syscall2 (SYS_CREATE, file, initial_size);
 }
 
+/* 6번콜: 파일을 삭제하는 시스템 콜 */
 bool
 remove (const char *file) {
 	return syscall1 (SYS_REMOVE, file);
 }
 
+/* 7번콜: 파일을 오픈해주는 시스템 콜 */
 int
 open (const char *file) {
 	return syscall1 (SYS_OPEN, file);
 }
 
+/* 8번콜: fd로 열려있는 파일의 사이즈를 리턴해주는 시스템 콜 */
 int
 filesize (int fd) {
 	return syscall1 (SYS_FILESIZE, fd);
 }
 
+/* 9번콜: read해주는 시스템 콜 (fd를 통해 열린 파일의 내용) => (버퍼)*/
 int
 read (int fd, void *buffer, unsigned size) {
 	return syscall3 (SYS_READ, fd, buffer, size);
 }
 
+/* 10번콜: write 해주는 시스템 콜 (버퍼) => (fd를 통해 열린 파일의 내용)*/
 int
 write (int fd, const void *buffer, unsigned size) {
 	return syscall3 (SYS_WRITE, fd, buffer, size);
 }
 
+/* 11번콜: fd로 열려있는 파일의 (읽고 쓸 위치를 알려주는)포인터의 위치를 변경해주는 시스템 콜 */
 void
 seek (int fd, unsigned position) {
 	syscall2 (SYS_SEEK, fd, position);
 }
 
+/* 12번콜: fd에서 읽히거나 써질 다음 바이트의 위치를 반환 */
 unsigned
 tell (int fd) {
 	return syscall1 (SYS_TELL, fd);
 }
 
+/* 13번콜: fd를 닫는 시스템 콜 */
 void
 close (int fd) {
 	syscall1 (SYS_CLOSE, fd);
