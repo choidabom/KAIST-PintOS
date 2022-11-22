@@ -216,7 +216,11 @@ int process_wait(tid_t child_tid UNUSED)
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+
+	// 1) Argument passing 확인 작업 =>  WSL 에서는 while(1)로 기본 작업을 수행할 수 있음
 	while (1){}
+
+	// 2) Argument passing 확인 작업 =>  ec2에서는 현재 스레드의 우선순위가 자식 프로세스보다 적게 함으로써 확인 가능
 	// thread_set_priority(PRI_DEFAULT - 1);
 	// thread_current()->priority = ;
 
