@@ -95,6 +95,8 @@ static uint64_t gdt[3] = {0, 0x00af9a000000ffff, 0x00cf92000000ffff};
    finishes. */
 void thread_init(void)
 {
+	/* ASSERT 함수: 값이 False이면 시스템 Shutdown을 실시 (=kernel panic 상태) */
+	/* intr_get_level 함수: interrupt 꺼져 있는 확인 (현재 부팅단계라 꺼져있어야 정상 )*/
 	ASSERT(intr_get_level() == INTR_OFF);
 
 	/* Reload the temporal gdt for the kernel
@@ -343,11 +345,13 @@ void test_max_priority(void)
 	if (!list_empty(&ready_list))
 	{
 		max_ready = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (max_ready->priority > thread_current()->priority){
-			if (thread_current() != idle_thread){
+		if (max_ready->priority > thread_current()->priority)
+		{
+			if (thread_current() != idle_thread)
+			{
 				thread_yield();
-		  }
-    }
+			}
+		}
 	}
 }
 
