@@ -2,6 +2,21 @@
     "files.associations": {
         "stdbool.h": "c",
         "string.h": "c",
-        "process.h": "c"
+        "process.h": "c",
+        "initializer_list": "c",
+        "limits": "c",
+        "type_traits": "c",
+        "syscall.h": "c",
+        "*.inc": "c",
+        "*.tcc": "c",
+        "exception": "c",
+        "fstream": "c",
+        "iosfwd": "c",
+        "new": "c",
+        "ostream": "c",
+        "sstream": "c",
+        "streambuf": "c",
+        "syscall-nr.h": "c",
+        "typeinfo": "c"
     }
 }

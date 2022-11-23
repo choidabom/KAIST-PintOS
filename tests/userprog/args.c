@@ -5,24 +5,23 @@
 
 #include "tests/lib.h"
 
-int
-main (int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
   int i;
 
   test_name = "args";
 
-  if (((unsigned long long) argv & 7) != 0)
-    msg ("argv and stack must be word-aligned, actually %p", argv);
+  if (((unsigned long long)argv & 7) != 0) // 8로 정렬이 안 되었을 경우
+    msg("argv and stack must be word-aligned, actually %p", argv);
 
-  msg ("begin");
-  msg ("argc = %d", argc);
+  msg("begin");
+  msg("argc = %d", argc);
   for (i = 0; i <= argc; i++)
     if (argv[i] != NULL)
-      msg ("argv[%d] = '%s'", i, argv[i]);
+      msg("argv[%d] = '%s'", i, argv[i]);
     else
-      msg ("argv[%d] = null", i);
-  msg ("end");
+      msg("argv[%d] = null", i);
+  msg("end");
 
   return 0;
 }
