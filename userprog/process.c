@@ -222,11 +222,6 @@ int process_wait(tid_t child_tid UNUSED)
 	 * XXX:       implementing the process_wait. */
 
 	// 1) Argument passing 확인 작업 =>  WSL 에서는 while(1)로 기본 작업을 수행할 수 있음
-	// while (1)
-	// {
-	// 	continue;
-	// 	/* code */
-	// }
 	for (int i = 0; i < 1000000000; i++)
 		;
 	// 2) Argument passing 확인 작업 =>  ec2에서는 현재 스레드의 우선순위가 자식 프로세스보다 적게 함으로써 확인 가능
@@ -244,6 +239,10 @@ void process_exit(void)
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
+	if (curr->pml4 != NULL)
+	{
+		printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+	}
 
 	process_cleanup();
 }

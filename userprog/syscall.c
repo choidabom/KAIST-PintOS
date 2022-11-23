@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -7,10 +8,16 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
-void exit(int status);
+void check_address(void *addr);
+void exit_handler(int status);
+bool create_handler(const char *file, unsigned initial_size);
+bool remove_handler(const char *file);
+int open_handler(const char *file);
 
 /* System call.
  *
@@ -54,25 +61,114 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	switch (syscall_num)
 	{
 	case SYS_HALT:
-		power_off();
+		halt_handler();
+	case SYS_EXIT:
+		exit_handler(a1);
+		break;
+	case SYS_FORK:
+
+		break;
+	case SYS_EXEC:
+
+		break;
+	case SYS_WAIT:
+
+		break;
+	case SYS_CREATE:
+		f->R.rax = create_handler(f->R.rdi, f->R.rsi);
+		return;
+		break;
+	case SYS_REMOVE:
+		f->R.rax = remove_handler(f->R.rdi);
+		break;
+	case SYS_OPEN:
+		f->R.rax = open_handler(f->R.rdi);
+		break;
+	case SYS_FILESIZE:
+
+		break;
+	case SYS_READ:
+
+		break;
 	case SYS_WRITE:
 		printf("%s", f->R.rsi);
 		break;
-	case SYS_EXIT:
-		exit(f->R.rdi);
-		break;
+	case SYS_SEEK:
 
+		break;
+	case SYS_TELL:
+
+		break;
+	case SYS_CLOSE:
+
+		break;
 	default:
 		break;
 	}
-	// thread_exit();
+	// printf("반환값 넣을자리 ?\n");
 }
 
-void exit(int status)
+void halt_handler()
+{
+	power_off();
+}
+
+/* 현재 프로세스를 종료시키는 시스템 콜 */
+/* staus: 프로그램이 정상적으로 종료됐는지 확인, 정상적 종료 시 status = 0*/
+void exit_handler(int status)
 {
 	struct thread *cur = thread_current();
-	// cur->exit_status = status;
-	// status = 0;
-	printf("%s: exit(%d)\n", thread_name(), status);
+	cur->exit_status = status;
 	thread_exit();
+}
+
+/* 파일을 생성하는 시스템 콜 */
+bool create_handler(const char *file, unsigned initial_size)
+{
+	check_address(file);
+	// printf("file name = %s\n",file);
+	// printf("size = %d\n",initial_size);
+	if (file == NULL)
+	{
+		exit_handler(-1);
+	}
+	return filesys_create(file, initial_size);
+}
+
+/* 파일을 삭제하는 시스템 콜 */
+/* file: 제거할 파일의 이름 및 경로 정보 */
+bool remove_handler(const char *file)
+{
+	// checkaddress(file);
+	return filesys_remove(file);
+}
+
+int open_handler(const char *file)
+{
+	check_address(file);
+	struct file *open_file = file_open(file);
+	if (open_file == NULL)
+		return -1;
+	int fd = open_file->inode;
+	return fd;
+}
+
+// /* fd로 열려있는 파일의 사이즈를 리턴해주는 시스템 콜 */
+// int filesize(int fd)
+// {
+// }
+
+void check_address(void *addr)
+{
+	/* 포인터가 가리키는 주소가 유저영역의 주소인지 확인 */
+	// if (&addr < 0x8048000 || &addr > 0xc0000000)
+
+	if (is_user_vaddr(addr) && pml4_get_page(thread_current()->pml4, addr) && addr != NULL)
+	{
+		return;
+	}
+	else
+		exit_handler(-1);
+
+	// 유저 가상 공간에 존재하지만 페이지에 할당되지 않은 경우도 존재함
 }

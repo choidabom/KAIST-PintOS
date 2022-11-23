@@ -100,10 +100,12 @@ struct thread
 	struct lock *wait_on_lock;		/* 획득하고자 하는 lock의 주소를 저장*/
 	struct list_elem donation_elem; /* donate할때 확장할 priority의 자료형 */
 	struct list donations;			/* donate받은 priority 저장할 list */
+	int exit_status;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
+
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
