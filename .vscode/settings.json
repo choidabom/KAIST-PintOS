@@ -1,7 +1,10 @@
 {
     "files.associations": {
-        "stdbool.h": "c",
-        "string.h": "c",
-        "process.h": "c"
+        "syscall.h": "c",
+        "*.inc": "c",
+        "flags.h": "c",
+        "stdio.h": "c",
+        "interrupt.h": "c",
+        "file.h": "c"
     }
 }
