@@ -227,7 +227,7 @@ int process_wait(tid_t child_tid UNUSED)
 	// 2) Argument passing 확인 작업 =>  ec2에서는 현재 스레드의 우선순위가 자식 프로세스보다 적게 함으로써 확인 가능
 	// thread_set_priority(PRI_DEFAULT - 1);
 	// thread_current()->priority = ;
-
+	// timer_sleep(300);
 	return -1;
 }
 

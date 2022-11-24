@@ -5,6 +5,7 @@
         "flags.h": "c",
         "stdio.h": "c",
         "interrupt.h": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "stdint.h": "c"
     }
 }

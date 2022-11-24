@@ -29,6 +29,7 @@ __attribute__((always_inline)) static __inline int64_t syscall(uint64_t num_, ui
 		: "g"(num), "g"(a1), "g"(a2), "g"(a3), "g"(a4), "g"(a5), "g"(a6)
 		: "cc", "memory");
 	return ret;
+	// syscall 인스트럭션이 실행되면 syscall-entry.S로 진입
 }
 
 /* Invokes syscall NUMBER, passing no arguments, and returns the

@@ -208,12 +208,25 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	/* File Descriptor 초기화 -
+	1. fd 구조체를 저장할 리스트를 생성한다.
+	2. 구조체 0과 1은 표준 입력과 출력에 해당되기 때문에 미리 할당해준다.*/
+	list_init(&t->fd_list);
+	// struct file_fd *fd_zero;
+	// struct file_fd *fd_one;
+	// fd_zero->fd = 0;
+	// fd_one->fd = 1;
+	// list_push_back(&t->fd_list, &fd_zero->fd_elem);
+	// list_push_back(&t->fd_list, &fd_one->fd_elem);
+	t->fd_count = 1;
+
 	/* Add to run queue. */
 	// thread_unblock(t);
 	curr = thread_current();
 	thread_unblock(t);
 	if (t->priority > curr->priority)
 		thread_yield();
+
 	// unblock함수에서는 block -> unblock으로 status가 변경되면서 readylist로 들어간다.
 	// 만약 if문에서 t가 더 클 경우 curr이 yield 되더라도 curr이 t가 존재하기 전 readylist에서 가장 큰 thread였기 때문에 t는 readylist에서도 가장 큰 thread가 될것.
 	// 따라서 yield가 되면 t가 바로 running thread가 될 것.
