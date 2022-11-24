@@ -4,6 +4,7 @@
         "*.inc": "c",
         "flags.h": "c",
         "stdio.h": "c",
-        "interrupt.h": "c"
+        "interrupt.h": "c",
+        "file.h": "c"
     }
 }
