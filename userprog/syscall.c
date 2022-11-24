@@ -10,6 +10,7 @@
 #include "intrinsic.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "threads/synch.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -21,10 +22,11 @@ int open_handler(const char *file);
 int filesize_handler(int fd);
 int read_handler(int fd, void *buffer, unsigned size);
 int write_handler(int fd, const void *buffer, unsigned size);
-void seek_handelr(int fd, unsigned position);
-unsigned
-tell_handler(int fd);
+void seek_handler(int fd, unsigned position);
+unsigned tell_handler(int fd);
 void close_handler(int fd);
+int process_add_file(struct file *f); /* 파일 객체에 대한 파일 디스크립터 생성 */
+struct lock filesys_lock;			  /* read(), write()에서 파일 접근 전 lock을 획득하도록 구현*/
 
 /* System call.
  *
@@ -50,6 +52,7 @@ void syscall_init(void)
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			  FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+	lock_init(&filesys_lock); /* filesys_lock 초기화 코드 */
 }
 
 /* The main system call interface */
@@ -64,7 +67,6 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	uint64_t a5 = f->R.r8;
 	uint64_t a6 = f->R.r9;
 
-	// printf("syscall_num 확인 !!!!!!!!!!!%d\n", syscall_num);
 	switch (syscall_num)
 	{
 	case SYS_HALT:
@@ -82,37 +84,35 @@ void syscall_handler(struct intr_frame *f UNUSED)
 
 		break;
 	case SYS_CREATE:
-		f->R.rax = create_handler(f->R.rdi, f->R.rsi);
-		return;
+		f->R.rax = create_handler(a1, a2);
 		break;
 	case SYS_REMOVE:
-		f->R.rax = remove_handler(f->R.rdi);
+		f->R.rax = remove_handler(a1);
 		break;
 	case SYS_OPEN:
-		f->R.rax = open_handler(f->R.rdi);
+		f->R.rax = open_handler(a1);
 		break;
 	case SYS_FILESIZE:
-		f->R.rax = filesize_handler(f->R.rdi);
+		f->R.rax = filesize_handler(a1);
 		break;
 	case SYS_READ:
-
+		f->R.rax = read_handler(a1, a2, a3);
 		break;
 	case SYS_WRITE:
-		printf("%s", f->R.rsi);
+		printf("%s", a2);
 		break;
 	case SYS_SEEK:
-
+		seek_handler(a1, a2);
 		break;
 	case SYS_TELL:
-
+		f->R.rax = tell_handler(a1);
 		break;
 	case SYS_CLOSE:
-
+		close_handler(a1);
 		break;
 	default:
 		break;
 	}
-	// printf("반환값 넣을자리 ?\n");
 }
 
 void halt_handler()
@@ -133,8 +133,6 @@ void exit_handler(int status)
 bool create_handler(const char *file, unsigned initial_size)
 {
 	check_address(file);
-	// printf("file name = %s\n",file);
-	// printf("size = %d\n",initial_size);
 	if (file == NULL)
 	{
 		exit_handler(-1);
@@ -152,16 +150,16 @@ bool remove_handler(const char *file)
 
 int open_handler(const char *file)
 {
+	check_address(file);
 	if (*file == NULL)
 		return -1;
-	check_address(file);
 
 	struct file *open_file = filesys_open(file);
 	if (open_file == NULL)
 		return -1;
-	int fd = open_file->inode;
+	int fd = process_add_file(open_file);
+
 	return fd;
-	// 프로세스가 fd들을 관리할 수 있도록 배열로 만들어줘야한다...~
 }
 
 /* fd로 열려있는 파일의 사이즈를 리턴해주는 시스템 콜 */
@@ -172,13 +170,44 @@ int filesize_handler(int fd)
 
 int read_handler(int fd, void *buffer, unsigned size)
 {
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+
+	lock_acquire(&filesys_lock);
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
+		if (read_fd->fd == fd)
+		{
+			check_address(read_fd->file);
+			if (fd == 0)
+			{
+				return input_getc();
+			}
+			else
+				open_handler(read_fd->file);
+			file_read(read_fd->file, buffer, strlen(buffer));
+		}
+	}
+	lock_release(&filesys_lock);
 }
 
 int write_handler(int fd, const void *buffer, unsigned size)
 {
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *write_fd = list_entry(start, struct file_fd, fd_elem);
+		if (write_fd->fd == fd)
+		{
+			file_write(write_fd->fd, buffer, strlen(buffer));
+		}
+	}
 }
 
-void seek_handelr(int fd, unsigned position)
+void seek_handler(int fd, unsigned position)
 {
 }
 
@@ -186,11 +215,35 @@ void seek_handelr(int fd, unsigned position)
 unsigned
 tell_handler(int fd)
 {
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *tell_fd = list_entry(start, struct file_fd, fd_elem);
+		if (tell_fd->fd == fd)
+		{
+			return file_tell(tell_fd->file);
+		}
+	}
 }
 
 /* fd를 닫는 시스템 콜 */
 void close_handler(int fd)
 {
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+	// start->fd_list = curr->fd_list;
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *close_fd = list_entry(start, struct file_fd, fd_elem);
+		if (close_fd->fd == fd)
+		{
+			file_close(close_fd->file);
+			close_fd->fd = NULL;
+		}
+	}
+	return;
 }
 
 void check_address(void *addr)
@@ -200,9 +253,19 @@ void check_address(void *addr)
 
 	// 유저 가상 공간에 존재하지만 페이지에 할당되지 않은 경우도 존재함
 	if (is_user_vaddr(addr) && pml4_get_page(thread_current()->pml4, addr) && addr != NULL)
-	{
 		return;
-	}
 	else
 		exit_handler(-1);
+}
+
+int process_add_file(struct file *f)
+{
+	struct thread *curr = thread_current();
+	struct file_fd *new_fd = malloc(sizeof(struct file_fd));
+	curr->fd_count += 1;
+	new_fd->fd = curr->fd_count;
+	new_fd->file = f;
+	list_push_back(&curr->fd_list, &new_fd->fd_elem);
+
+	return new_fd->fd;
 }

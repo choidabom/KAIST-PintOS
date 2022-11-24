@@ -103,6 +103,7 @@ int main(void)
 #ifdef USERPROG
 	exception_init();
 	syscall_init();
+	// syscall_init(); => syscall이라는 어셈블리 인스트럭션이 실행되면 syscall-entry.S가 실행되도록 기본 설정을 해줌
 #endif
 	/* Start thread scheduler and enable interrupts. */
 	/* 스레드 스케줄러 시작 */

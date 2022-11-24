@@ -18,6 +18,13 @@ enum thread_status
 	THREAD_DYING	/* About to be destroyed. */
 };
 
+struct file_fd
+{
+	int fd;					  /* fd: 파일 식별자 */
+	struct file *file;		  /* file */
+	struct list_elem fd_elem; /* list 구조체의 구성원 */
+};
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -100,6 +107,8 @@ struct thread
 	struct lock *wait_on_lock;		/* 획득하고자 하는 lock의 주소를 저장*/
 	struct list_elem donation_elem; /* donate할때 확장할 priority의 자료형 */
 	struct list donations;			/* donate받은 priority 저장할 list */
+	struct list fd_list;			/* fd를 저장할 리스트 */
+	int fd_count;					/* fd를 확인하기 위한 count*/
 	int exit_status;
 
 #ifdef USERPROG
