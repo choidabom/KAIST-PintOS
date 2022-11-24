@@ -10,7 +10,7 @@
 #include "intrinsic.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
-// #include "threads/synch.h"
+#include "threads/synch.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -26,7 +26,7 @@ void seek_handler(int fd, unsigned position);
 unsigned tell_handler(int fd);
 void close_handler(int fd);
 int process_add_file(struct file *f); /* 파일 객체에 대한 파일 디스크립터 생성 */
-// struct lock filesys_lock;			  /* read(), write()에서 파일 접근 전 lock을 획득하도록 구현*/
+struct lock filesys_lock;			  /* read(), write()에서 파일 접근 전 lock을 획득하도록 구현*/
 
 /* System call.
  *
@@ -52,7 +52,7 @@ void syscall_init(void)
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			  FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
-	// lock_init(&filesys_lock); /* filesys_lock 초기화 코드 */
+	lock_init(&filesys_lock); /* filesys_lock 초기화 코드 */
 }
 
 /* The main system call interface */
@@ -165,31 +165,47 @@ int open_handler(const char *file)
 /* fd로 열려있는 파일의 사이즈를 리턴해주는 시스템 콜 */
 int filesize_handler(int fd)
 {
-	return inode_length(fd);
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *now_fd = list_entry(start, struct file_fd, fd_elem);
+		if (now_fd->fd == fd)
+		{
+			return file_length(now_fd->file);
+		}
+	}
 }
 
 int read_handler(int fd, void *buffer, unsigned size)
 {
 	struct thread *curr = thread_current();
 	struct list_elem *start;
+	lock_acquire(&filesys_lock);
+	if (fd == 0)
+	{
+		return input_getc();
+	}
+	// bad-fd는 page-fault를 일으키기 때문에 page-fault를 처리하는 함수에서 확인
+	else if (fd < 0)
+	{
+		exit_handler(-1);
+	}
 
-	// lock_acquire(&filesys_lock);
-	// for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
-	// {
-	// 	struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
-	// 	if (read_fd->fd == fd)
-	// 	{
-	// 		check_address(read_fd->file);
-	// 		if (fd == 0)
-	// 		{
-	// 			return input_getc();
-	// 		}
-	// 		else
-	// 			open_handler(read_fd->file);
-	// 		file_read(read_fd->file, buffer, strlen(buffer));
-	// 	}
-	// }
-	// lock_release(&filesys_lock);
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
+		if (read_fd->fd == fd)
+		{
+			check_address(read_fd->file);
+			off_t buff_size = file_read(read_fd->file, buffer, size);
+			size_t file_size = filesize_handler(read_fd->fd);
+			lock_release(&filesys_lock);
+			return buff_size;
+		}
+		exit_handler(-1);
+	}
 }
 
 int write_handler(int fd, const void *buffer, unsigned size)
