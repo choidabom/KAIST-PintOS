@@ -212,12 +212,6 @@ tid_t thread_create(const char *name, int priority,
 	1. fd 구조체를 저장할 리스트를 생성한다.
 	2. 구조체 0과 1은 표준 입력과 출력에 해당되기 때문에 미리 할당해준다.*/
 	list_init(&t->fd_list);
-	struct file_fd fd_zero;
-	struct file_fd fd_one;
-	fd_zero.fd = 0;
-	fd_one.fd = 1;
-	list_push_back(&t->fd_list, &fd_zero.fd_elem);
-	list_push_back(&t->fd_list, &fd_one.fd_elem);
 	t->fd_count = 1;
 
 	/* Add to run queue. */
