@@ -177,12 +177,12 @@ int filesize_handler(int fd)
 		}
 	}
 }
-
+// bad-fd는 page-fault를 일으키기 때문에 page-fault를 처리하는 함수에서 확인
 int read_handler(int fd, void *buffer, unsigned size)
 {
 	struct thread *curr = thread_current();
 	struct list_elem *start;
-	lock_acquire(&filesys_lock);
+
 	if (fd == 0)
 	{
 		return input_getc();
@@ -198,12 +198,13 @@ int read_handler(int fd, void *buffer, unsigned size)
 		struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
 		if (read_fd->fd == fd)
 		{
-			check_address(read_fd->file);
+			// check_address(read_fd->file);
+			lock_acquire(&filesys_lock);
 			off_t buff_size = file_read(read_fd->file, buffer, size);
 			lock_release(&filesys_lock);
 			return buff_size;
 		}
-		exit_handler(-1);
+		// exit_handler(-1);
 	}
 }
 
@@ -221,9 +222,20 @@ int write_handler(int fd, const void *buffer, unsigned size)
 		}
 	}
 }
-
+/* fd로 열려있는 파일의 (읽고 쓸 위치를 알려주는)포인터의 위치를 변경해주는 시스템 콜 */
 void seek_handler(int fd, unsigned position)
 {
+	struct thread *curr = thread_current();
+	struct list_elem *start;
+
+	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	{
+		struct file_fd *seek_fd = list_entry(start, struct file_fd, fd_elem);
+		if (seek_fd->fd == fd)
+		{
+			file_seek(seek_fd->file, position);
+		}
+	}
 }
 
 /* fd에서 읽히거나 써질 다음 바이트의 위치를 반환 */
@@ -254,6 +266,7 @@ void close_handler(int fd)
 		struct file_fd *close_fd = list_entry(start, struct file_fd, fd_elem);
 		if (close_fd->fd == fd)
 		{
+
 			file_close(close_fd->file);
 			close_fd->fd = NULL;
 		}
