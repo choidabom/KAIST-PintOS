@@ -94,7 +94,6 @@ pid_t fork(const char *thread_name)
 }
 
 /* 3번콜: 현재 프로세스를 실행가능한 프로세스로 변경해주는 시스템 콜 */
-
 int exec(const char *file)
 {
 	return (pid_t)syscall1(SYS_EXEC, file);

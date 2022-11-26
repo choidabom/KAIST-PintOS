@@ -2,6 +2,8 @@
   "files.associations": {
     "string.h": "c",
     "*.inc": "c",
-    "console.h": "c"
+    "console.h": "c",
+    "process.h": "c",
+    "palloc.h": "c"
   }
 }

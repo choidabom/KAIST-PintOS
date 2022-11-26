@@ -12,11 +12,16 @@
 #include "filesys/filesys.h"
 #include "threads/synch.h"
 #include "lib/kernel/stdio.h"
+#include "userprog/process.h"
+#include "include/threads/palloc.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 void check_address(void *addr);
 void exit_handler(int status);
+tid_t fork_handler(const char *thread_name);
+int exec_handler(const char *file);
+int wait_handler(tid_t tid);
 bool create_handler(const char *file, unsigned initial_size);
 bool remove_handler(const char *file);
 int open_handler(const char *file);
@@ -76,13 +81,13 @@ void syscall_handler(struct intr_frame *f UNUSED)
 		exit_handler(a1);
 		break;
 	case SYS_FORK:
-
+		f->R.rax = fork_handler(a1);
 		break;
 	case SYS_EXEC:
-
+		f->R.rax = exec_handler(a1);
 		break;
 	case SYS_WAIT:
-
+		f->R.rax = wait_handler(a1);
 		break;
 	case SYS_CREATE:
 		f->R.rax = create_handler(a1, a2);
@@ -128,6 +133,26 @@ void exit_handler(int status)
 	struct thread *cur = thread_current();
 	cur->exit_status = status;
 	thread_exit();
+}
+
+tid_t fork_handler(const char *thread_name)
+{
+}
+
+/* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경된다.  */
+int exec_handler(const char *file)
+{
+	char *file_name = palloc_get_page(PAL_ZERO);
+	strlcpy(file_name, file, strlen(file) + 1);
+
+	if (process_exec(file_name) == -1)
+	{
+		return -1;
+	}
+}
+
+int wait_handler(tid_t tid)
+{
 }
 
 /* 파일을 생성하는 시스템 콜 */
