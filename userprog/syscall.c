@@ -11,6 +11,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/synch.h"
+#include "lib/kernel/stdio.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -99,7 +100,7 @@ void syscall_handler(struct intr_frame *f UNUSED)
 		f->R.rax = read_handler(a1, a2, a3);
 		break;
 	case SYS_WRITE:
-		printf("%s", a2);
+		f->R.rax = write_handler(a1, a2, a3);
 		break;
 	case SYS_SEEK:
 		seek_handler(a1, a2);
@@ -177,6 +178,7 @@ int filesize_handler(int fd)
 		}
 	}
 }
+
 // bad-fd는 page-fault를 일으키기 때문에 page-fault를 처리하는 함수에서 확인
 int read_handler(int fd, void *buffer, unsigned size)
 {
@@ -204,7 +206,7 @@ int read_handler(int fd, void *buffer, unsigned size)
 			lock_release(&filesys_lock);
 			return buff_size;
 		}
-		// exit_handler(-1);
+		// exit_handler(0);
 	}
 }
 
@@ -212,16 +214,33 @@ int write_handler(int fd, const void *buffer, unsigned size)
 {
 	struct thread *curr = thread_current();
 	struct list_elem *start;
-
+	if (fd == 1)
+	{
+		putbuf(buffer, size);
+		return size;
+		// fd == 1이라는 의미는 표준 출력을 의미함. 따라서 화면에 입력된 데이터를 출력하는 함수 pufbuf를 호출.
+		// putbuf 함수는 buffer에 입력된 데이터를 size만큼 화면에 출력하는 함수.
+		// 이후 버퍼의 크기 -> size를 반환한다.
+	}
+	else if (fd < 0 || fd == NULL)
+	{
+		exit_handler(-1);
+	}
 	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
 	{
 		struct file_fd *write_fd = list_entry(start, struct file_fd, fd_elem);
 		if (write_fd->fd == fd)
 		{
-			file_write(write_fd->fd, buffer, strlen(buffer));
+			lock_acquire(&filesys_lock);
+			off_t write_size = file_write(write_fd->file, buffer, size);
+			// fd == 0 과 fd == 1은 표준 입출력을 의미하는 파일 식별자이기 때문에 해당되는 파일이 존재하지 않는다.
+			// 따라서 정상적인 write가 이루어지지 않는다. fd == 1이면 write 함수의 반환값은 0임.
+			lock_release(&filesys_lock);
+			return write_size;
 		}
 	}
 }
+
 /* fd로 열려있는 파일의 (읽고 쓸 위치를 알려주는)포인터의 위치를 변경해주는 시스템 콜 */
 void seek_handler(int fd, unsigned position)
 {
