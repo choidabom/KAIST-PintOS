@@ -11,6 +11,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/synch.h"
+#include "lib/kernel/console.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -213,12 +214,23 @@ int write_handler(int fd, const void *buffer, unsigned size)
 	struct thread *curr = thread_current();
 	struct list_elem *start;
 
+	if (fd == 1)
+	{
+		putbuf(buffer, size);
+	}
+	else if (fd < 0 || fd == NULL)
+	{
+		exit_handler(-1);
+	}
 	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
 	{
 		struct file_fd *write_fd = list_entry(start, struct file_fd, fd_elem);
 		if (write_fd->fd == fd)
 		{
-			file_write(write_fd->fd, buffer, strlen(buffer));
+			lock_acquire(&filesys_lock);
+			off_t write_size = file_write(write_fd->file, buffer, size);
+			lock_release(&filesys_lock);
+			return write_size;
 		}
 	}
 }
