@@ -4,6 +4,12 @@
     "*.inc": "c",
     "console.h": "c",
     "process.h": "c",
-    "palloc.h": "c"
+    "palloc.h": "c",
+    "lib.h": "c",
+    "types.h": "c",
+    "unistd.h": "c",
+    "stdio.h": "c",
+    "synch.h": "c",
+    "syscall.h": "c"
   }
 }

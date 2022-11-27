@@ -216,12 +216,13 @@ tid_t thread_create(const char *name, int priority,
 	struct file_fd *fd_zero = malloc(sizeof(struct file_fd));
 	struct file_fd *fd_one = malloc(sizeof(struct file_fd));
 	fd_zero->fd = 0;
+	fd_zero->file = NULL;
 	fd_one->fd = 1;
+	fd_one->file = NULL;
 	list_push_back(&t->fd_list, &fd_zero->fd_elem);
 	list_push_back(&t->fd_list, &fd_one->fd_elem);
 
 	/* Add to run queue. */
-	// thread_unblock(t);
 	curr = thread_current();
 	thread_unblock(t);
 	if (t->priority > curr->priority)
@@ -239,7 +240,7 @@ tid_t thread_create(const char *name, int priority,
    This function must be called with interrupts turned off.  It
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
-//
+
 void thread_block(void)
 {
 	ASSERT(!intr_context());

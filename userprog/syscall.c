@@ -19,7 +19,7 @@ void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 void check_address(void *addr);
 void exit_handler(int status);
-tid_t fork_handler(const char *thread_name);
+tid_t fork_handler(const char *thread_name, struct intr_frame *f);
 int exec_handler(const char *file);
 int wait_handler(tid_t tid);
 bool create_handler(const char *file, unsigned initial_size);
@@ -62,7 +62,7 @@ void syscall_init(void)
 }
 
 /* The main system call interface */
-void syscall_handler(struct intr_frame *f UNUSED)
+void syscall_handler(struct intr_frame *f)
 {
 	// TODO: Your implementation goes here.
 	int syscall_num = f->R.rax;
@@ -81,7 +81,7 @@ void syscall_handler(struct intr_frame *f UNUSED)
 		exit_handler(a1);
 		break;
 	case SYS_FORK:
-		f->R.rax = fork_handler(a1);
+		f->R.rax = fork_handler(a1, f);
 		break;
 	case SYS_EXEC:
 		f->R.rax = exec_handler(a1);
@@ -134,9 +134,32 @@ void exit_handler(int status)
 	cur->exit_status = status;
 	thread_exit();
 }
-
-tid_t fork_handler(const char *thread_name)
+/* thread_name이라는 이름을 가진 (현재 프로세스의 복제본인) 새 프로세스를 만들어주는 시스템 콜 */
+/* 자식 프로세스의 pid를 반환해야 함. 유효한 pid가 아닌 경우 0을 반환해야함. */
+tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 {
+
+	tid_t tid = process_fork(thread_name, f);
+
+	if (tid >= 0)
+	{
+		return tid;
+	}
+	else
+	{
+		return TID_ERROR;
+	}
+	// fork() 의 반환 값이 0보다 작으면 오류.->TID_ERROR를 반환한다.fork() 의 반환 값이 0이면 자식 프로세스.fork() 의 반환 값이 0보다 크면 부모 프로세스.thread_create를 해서 자식프로세스(스레드) 를 생성한다.
+
+	// 1. 자식 프로세스의 p_tid를 부모프로세스로 초기화 해줘야한다.-- > thread_create() 안의 init_thread에서 연결해줌 .
+	// 2. 자식 프로세스(스레드) 를 부모프로세스의 자식 리스트에 넣어줘야 한다.언제?
+	// process_exec을 해서 자식 프로세스를 실행한다
+	// 	? semadown을 한단 말이지..
+
+	// 	  부모프로세스를 실행할 수 있다.반환값은 자식
+	// 	  프로세스(스레드) 의 tid_t인데.자식
+	// 	  프로세스(스레드) 의 tid를 어캐 가져오지..
+	// 	?
 }
 
 /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경된다.  */
@@ -153,6 +176,8 @@ int exec_handler(const char *file)
 
 int wait_handler(tid_t tid)
 {
+	process_wait(tid);
+	return 81;
 }
 
 /* 파일을 생성하는 시스템 콜 */

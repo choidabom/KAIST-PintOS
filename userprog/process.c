@@ -17,6 +17,7 @@
 #include "threads/thread.h"
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 #include "intrinsic.h"
 #include "lib/string.h"
 #include "lib/stdio.h"
@@ -28,8 +29,14 @@
 static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
-static void __do_fork(void *);
+static void __do_fork(struct fork_data *aux);
 void argument_stack(char **parse, int count, void **rsp);
+struct fork_data
+{
+	struct thread *parent;
+	struct intr_frame *user_level_f;
+	struct semaphore semaphore;
+};
 /* General process initializer for initd and other process. */
 static void
 process_init(void)
@@ -86,11 +93,25 @@ initd(void *f_name)
 
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
-tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED)
+tid_t process_fork(const char *name, struct intr_frame *if_)
 {
+	/* struct에 넣어야 할 정보
+	1. 부모 프로세스
+	2. 유저 레벨의 intr_frame
+	3. __do_fork가 끝난 다음에 부모 프로세스가 실행 될 수 있게 하기 위한 lock */
+	struct fork_data my_data;
+	my_data.parent = thread_current();
+	my_data.user_level_f = if_;
+	sema_init(&my_data.semaphore, 0); // lock 보단 semaphore
+
+	// curr->tf = *if_; => 이렇게 하면 커널 레벨의 인터럽트 프레임에 유저 레벨의 인터럽트 정보를 넣기 때문에 "틀린" 과정을 도출하게 됨.
+	/* curr->tf는 커널레벨의 인터럽트 프레임이기 때문에 context switch가 발생할 경우 값이 변경 되기 때문 */
+
 	/* Clone current thread to new thread.*/
-	return thread_create(name,
-						 PRI_DEFAULT, __do_fork, thread_current());
+	tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &my_data);
+	sema_down(&my_data.semaphore);
+
+	return tid;
 }
 
 #ifndef VM
@@ -106,22 +127,31 @@ duplicate_pte(uint64_t *pte, void *va, void *aux)
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
-
+	if (is_kern_pte(pte))
+	{
+		return true;
+	}
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page(parent->pml4, va);
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	newpage = palloc_get_page(PAL_USER);
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
+	writable = is_writable(pte);
+
+	// duplicate gogo
+	memcpy(newpage, parent_page, PGSIZE);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page(current->pml4, va, newpage, writable))
 	{
 		/* 6. TODO: if fail to insert page, do error handling. */
+		return false;
 	}
 	return true;
 }
@@ -132,14 +162,15 @@ duplicate_pte(uint64_t *pte, void *va, void *aux)
  *       That is, you are required to pass second argument of process_fork to
  *       this function. */
 static void
-__do_fork(void *aux)
+__do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 {
 	struct intr_frame if_;
-	struct thread *parent = (struct thread *)aux;
+	struct thread *parent = aux->parent;
 	struct thread *current = thread_current();
-	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	struct intr_frame *parent_if = aux->user_level_f;
 	bool succ = true;
+
+	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy(&if_, parent_if, sizeof(struct intr_frame));
@@ -149,7 +180,7 @@ __do_fork(void *aux)
 	if (current->pml4 == NULL)
 		goto error;
 
-	process_activate(current);
+	process_activate(current); /* 해당 스레드의 페이지 테이블 활성화 (흠 .. 매핑 활성화하는 친구)*/
 #ifdef VM
 	supplemental_page_table_init(&current->spt);
 	if (!supplemental_page_table_copy(&current->spt, &parent->spt))
@@ -163,10 +194,22 @@ __do_fork(void *aux)
 	 * TODO: Hint) To duplicate the file object, use `file_duplicate`
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
-	 * TODO:       the resources of parent.*/
+	//  * TODO:       the resources of parent.*/
+	struct list_elem *start;
+	for (start = list_begin(&parent->fd_list); start != list_end(&parent->fd_list); start = list_next(start))
+	{
+		struct file_fd *parent_fd = list_entry(start, struct file_fd, fd_elem);
+		struct file_fd *child_fd = malloc(sizeof(struct file_fd));
+		if (parent_fd->file)
+			child_fd->file = file_duplicate(parent_fd->file);
+		list_push_back(&current->fd_list, &child_fd->fd_elem);
+	}
 
 	process_init();
 
+	sema_up(&aux->semaphore);
+
+	if_.R.rax = 0;
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret(&if_);
@@ -194,8 +237,8 @@ int process_exec(void *f_name)
 
 	/* And then load the binary */
 	success = load(f_name, &_if);
-	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	// 왜 void인데 char*인 file_name이 됨?
 	palloc_free_page(file_name);
 	if (!success)
@@ -222,12 +265,17 @@ int process_wait(tid_t child_tid UNUSED)
 	 * XXX:       implementing the process_wait. */
 
 	// 1) Argument passing 확인 작업 =>  WSL 에서는 while(1)로 기본 작업을 수행할 수 있음
-	for (int i = 0; i < 1000000000; i++)
-		;
+	// for (int i = 0; i < 1000000000; i++)
+	// 	;
 	// 2) Argument passing 확인 작업 =>  ec2에서는 현재 스레드의 우선순위가 자식 프로세스보다 적게 함으로써 확인 가능
-	// thread_set_priority(PRI_DEFAULT - 1);
-	// thread_current()->priority = ;
-	// timer_sleep(300);
+	// if (thread_current()->tid == 1)
+	// {
+	// 	thread_set_priority(PRI_DEFAULT - 1);
+	// }
+	// else
+
+	if (thread_current()->tid == 1)
+		timer_sleep(500);
 	return -1;
 }
 
@@ -506,9 +554,9 @@ load(const char *file_name, struct intr_frame *if_)
 	if_->R.rsi = stack_ptr + 8;
 	if_->R.rdi = argc;
 	success = true;
-
 done:
 	/* We arrive here whether the load is successful or not. */
+
 	file_close(file);
 	return success;
 }

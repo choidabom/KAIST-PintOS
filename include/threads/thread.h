@@ -111,6 +111,14 @@ struct thread
 	int fd_count;					/* fd를 확인하기 위한 count*/
 	int exit_status;
 
+	// tid_t p_tid;				 /*부모 프로세스(스레드)를 저장해주는 변수*/
+	// struct list child_list;		 /*자식 스레드를 보관하는 리스트*/
+	// struct list_elem child_elem; /*자식 리스트 element*/
+	// bool is_load;				 /*프로세스의 load 여부를 확인한다.*/
+	// bool is_exit;				 /*프로세스의 종료 여부를 확인한다.*/
+	// struct semaphore *exit_sema;
+	// struct semaphore *load_sema;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
