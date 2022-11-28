@@ -117,6 +117,8 @@ struct thread
 
 	struct list child_list;		 /* 자식 스레드를 보관하는 리스트 */
 	struct list_elem child_elem; /* 자식 리스트 element */
+	struct file *now_file;
+	struct lock file_lock;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

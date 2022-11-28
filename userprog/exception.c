@@ -144,12 +144,13 @@ page_fault(struct intr_frame *f)
 	user = (f->error_code & PF_U) != 0;
 	// 0 => 커널, 1 => 유저 프로세스
 
-	// if (!user)
-	// {
-	// 	f->R.rdi = -1;
-	// 	exit_handler(-1);
-	// }
-	exit_handler(-1);
+	if (user)
+	{
+		f->R.rdi = -1;
+		exit_handler(f->R.rdi);
+	}
+
+	// exit_handler(-1);
 	// stack pointer가 가리키는 주소에서 page fault가 발생할 경우, exit() 시스템 콜을 호출하여 실행중인 프로세스를 종료하도록 한다.
 	// 구체적인 사항은 나중에 프로젝트 3에서 확인하자...
 	// page fault - 유저영역의 주소이지만 물리 메모리에 존재하지 않을 경우.

@@ -154,15 +154,15 @@ duplicate_pte(uint64_t *pte, void *va, void *aux)
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately.
-		부모의 page가 kernel page인 경우 즉시 false를 리턴한다.  */
-	// if (is_kernel_vaddr(va))
-	// {
-	// 	return false;
-	// }
-	if (is_kern_pte(pte))
+		부모의 page가 kernel page인 경우 즉시 리턴한다.  */
+	if (is_kernel_vaddr(va))
 	{
 		return true;
 	}
+	// if (is_kern_pte(pte))
+	// {
+	// 	return true;
+	// }
 	/* 2. Resolve VA from the parent's page map level 4.
 		부모 스레드 내 멤버인 pml4를 이용해 부모 페이지를 불러온다. */
 	parent_page = pml4_get_page(parent->pml4, va);
@@ -238,29 +238,32 @@ __do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 	 * TODO:       the resources of parent.*/
 	struct list_elem *start;
 	struct list *parent_list = &parent->fd_list;
-	for (start = list_begin(parent_list); start != list_end(parent_list); start = list_next(start))
+	if (!list_empty(parent_list))
 	{
-		struct file_fd *parent_fd = list_entry(start, struct file_fd, fd_elem);
-		struct file_fd *child_fd = malloc(sizeof(struct file_fd));
-		if (parent_fd->file)
-			child_fd->file = file_duplicate(parent_fd->file);
-		list_push_back(&current->fd_list, &child_fd->fd_elem);
+		for (start = list_begin(parent_list); start != list_end(parent_list); start = list_next(start))
+		{
+			struct file_fd *parent_fd = list_entry(start, struct file_fd, fd_elem);
+			// printf("parent_fd : %d \n", parent_fd->fd);
+			if (parent_fd->file != NULL)
+			{
+				struct file_fd *child_fd = malloc(sizeof(struct file_fd));
+				child_fd->file = file_duplicate(parent_fd->file);
+				list_push_back(&current->fd_list, &child_fd->fd_elem);
+				child_fd->fd = parent_fd->fd;
+			}
+		}
+		current->fd_count = parent->fd_count;
 	}
-	current->fd_count = parent->fd_count;
 
-	process_init();
-
-	sema_up(&current->fork_sema);
-	// sema_up(&aux->semaphore);
 	if_.R.rax = 0;
+	process_init();
+	sema_up(&current->fork_sema);
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret(&if_);
 error:
-	sema_up(&current->fork_sema);
-	// sema_up(&aux->semaphore);
+	// sema_up(&current->fork_sema);
 	exit_handler(TID_ERROR);
-	// thread_exit();
 }
 
 /* Switch the current execution context to the f_name.
@@ -332,8 +335,11 @@ void process_exit(void)
 	if (curr->pml4 != NULL)
 	{
 		printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+		// file_close(curr->now_file);
 	}
+
 	sema_up(&curr->wait_sema);
+	sema_up(&curr->fork_sema);
 	sema_down(&curr->exit_sema);
 	process_cleanup();
 }
@@ -479,12 +485,15 @@ load(const char *file_name, struct intr_frame *if_)
 	}
 
 	/* Open executable file. */
+	// lock_acquire(&t->file_lock);
 	file = filesys_open(process_name);
 	if (file == NULL)
 	{
+		// lock_release(&t->file_lock);
 		printf("load: %s: open failed\n", process_name);
 		goto done;
 	}
+	// lock_release(&t->file_lock);
 
 	/* Read and verify executable header. */
 	if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 0x3E // amd64
@@ -551,6 +560,8 @@ load(const char *file_name, struct intr_frame *if_)
 			break;
 		}
 	}
+	// t->now_file = file; /* 현재 프로세스가 실행 중인 파일을 저장 */
+	// file_deny_write(file);
 
 	/* Set up stack. */
 	if (!setup_stack(if_))

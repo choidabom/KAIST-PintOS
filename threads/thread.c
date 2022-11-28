@@ -211,8 +211,7 @@ tid_t thread_create(const char *name, int priority,
 	/* File Descriptor 초기화 -
 	1. fd 구조체를 저장할 리스트를 생성한다.
 	2. 구조체 0과 1은 표준 입력과 출력에 해당되기 때문에 미리 할당해준다.*/
-	list_init(&t->fd_list);
-	t->fd_count = 1;
+	t->fd_count = 2;
 	struct file_fd *fd_zero = malloc(sizeof(struct file_fd));
 	struct file_fd *fd_one = malloc(sizeof(struct file_fd));
 	fd_zero->fd = 0;
@@ -224,8 +223,8 @@ tid_t thread_create(const char *name, int priority,
 
 	/* Add to run queue. */
 	curr = thread_current();
-	list_init(&curr->child_list);
 	list_push_back(&curr->child_list, &t->child_elem);
+
 	thread_unblock(t);
 	if (t->priority > curr->priority)
 		thread_yield();
@@ -467,10 +466,15 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
 	t->init_priority = priority;
+	t->exit_status = 0;
+
 	list_init(&t->donations);
+	list_init(&t->child_list);
+	list_init(&t->fd_list);
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->exit_sema, 0);
+	lock_init(&t->file_lock);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

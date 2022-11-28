@@ -157,6 +157,7 @@ tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 /* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경된다.  */
 int exec_handler(const char *file)
 {
+	check_address(file);
 	char *file_name = palloc_get_page(PAL_ZERO);
 	strlcpy(file_name, file, strlen(file) + 1);
 
@@ -193,6 +194,10 @@ bool remove_handler(const char *file)
 int open_handler(const char *file)
 {
 	check_address(file);
+	if (thread_current()->fd_count > 20)
+	{
+		return -1;
+	}
 	if (*file == NULL)
 		return -1;
 
@@ -223,36 +228,52 @@ int filesize_handler(int fd)
 // bad-fd는 page-fault를 일으키기 때문에 page-fault를 처리하는 함수에서 확인
 int read_handler(int fd, void *buffer, unsigned size)
 {
+	check_address(buffer);
 	struct thread *curr = thread_current();
 	struct list_elem *start;
+	off_t buff_size;
 
 	if (fd == 0)
 	{
-		return input_getc();
+		char word;
+		for (buff_size = 0; buff_size < size; buff_size++)
+		{
+			word = input_getc();
+			if (word == '\0')
+				break;
+		}
+		// return input_getc();
 	}
-	else if (fd < 0 || fd == NULL)
+	else if (fd < 0 || fd == NULL || fd == 1)
 	{
 		exit_handler(-1);
 	}
 	// bad-fd는 page-fault를 일으키기 때문에 page-fault를 처리하는 함수에서 확인
-
-	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
+	else
 	{
-		struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
-		if (read_fd->fd == fd)
+		for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
 		{
-			// check_address(read_fd->file);
-			lock_acquire(&filesys_lock);
-			off_t buff_size = file_read(read_fd->file, buffer, size);
-			lock_release(&filesys_lock);
-			return buff_size;
+			struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
+			// if (read_fd->file == NULL)
+			// 	return -1;
+			if (read_fd->fd == fd)
+			{
+				// check_address(read_fd->file);
+				lock_acquire(&filesys_lock);
+				buff_size = file_read(read_fd->file, buffer, size);
+				lock_release(&filesys_lock);
+				// return buff_size;
+			}
+			// exit_handler(0);
 		}
-		// exit_handler(0);
 	}
+	return buff_size;
 }
 
 int write_handler(int fd, const void *buffer, unsigned size)
 {
+
+	check_address(buffer);
 	struct thread *curr = thread_current();
 	struct list_elem *start;
 	if (fd == 1)
@@ -328,7 +349,9 @@ void close_handler(int fd)
 		{
 
 			file_close(close_fd->file);
+			list_remove(&close_fd->fd_elem);
 			close_fd->fd = NULL;
+			// free(close_fd);
 		}
 	}
 	return;
@@ -380,6 +403,7 @@ int process_add_file(struct file *f)
 	curr->fd_count += 1;
 	new_fd->fd = curr->fd_count;
 	new_fd->file = f;
+	// printf(" new fd : %d \n", new_fd->fd);
 	list_push_back(&curr->fd_list, &new_fd->fd_elem);
 
 	return new_fd->fd;
