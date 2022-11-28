@@ -139,16 +139,8 @@ void exit_handler(int status)
 tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 {
 
-	tid_t tid = process_fork(thread_name, f);
+	return process_fork(thread_name, f);
 
-	if (tid >= 0)
-	{
-		return tid;
-	}
-	else
-	{
-		return TID_ERROR;
-	}
 	// fork() 의 반환 값이 0보다 작으면 오류.->TID_ERROR를 반환한다.fork() 의 반환 값이 0이면 자식 프로세스.fork() 의 반환 값이 0보다 크면 부모 프로세스.thread_create를 해서 자식프로세스(스레드) 를 생성한다.
 
 	// 1. 자식 프로세스의 p_tid를 부모프로세스로 초기화 해줘야한다.-- > thread_create() 안의 init_thread에서 연결해줌 .
@@ -176,8 +168,7 @@ int exec_handler(const char *file)
 
 int wait_handler(tid_t tid)
 {
-	process_wait(tid);
-	return 81;
+	return process_wait(tid);
 }
 
 /* 파일을 생성하는 시스템 콜 */

@@ -224,6 +224,8 @@ tid_t thread_create(const char *name, int priority,
 
 	/* Add to run queue. */
 	curr = thread_current();
+	list_init(&curr->child_list);
+	list_push_back(&curr->child_list, &t->child_elem);
 	thread_unblock(t);
 	if (t->priority > curr->priority)
 		thread_yield();
@@ -466,6 +468,9 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	t->init_priority = priority;
 	list_init(&t->donations);
+	sema_init(&t->fork_sema, 0);
+	sema_init(&t->wait_sema, 0);
+	sema_init(&t->exit_sema, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

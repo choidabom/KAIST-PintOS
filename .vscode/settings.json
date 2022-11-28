@@ -10,6 +10,7 @@
     "unistd.h": "c",
     "stdio.h": "c",
     "synch.h": "c",
-    "syscall.h": "c"
+    "syscall.h": "c",
+    "thread.h": "c"
   }
 }
