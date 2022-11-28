@@ -335,7 +335,7 @@ void process_exit(void)
 	if (curr->pml4 != NULL)
 	{
 		printf("%s: exit(%d)\n", curr->name, curr->exit_status);
-		// file_close(curr->now_file);
+		file_close(curr->now_file);
 	}
 
 	sema_up(&curr->wait_sema);
@@ -503,6 +503,9 @@ load(const char *file_name, struct intr_frame *if_)
 		goto done;
 	}
 
+	t->now_file = file; /* 현재 프로세스가 실행 중인 파일을 저장 */
+	file_deny_write(file);
+
 	/* Read program headers. */
 	file_ofs = ehdr.e_phoff;
 	for (i = 0; i < ehdr.e_phnum; i++)
@@ -560,8 +563,6 @@ load(const char *file_name, struct intr_frame *if_)
 			break;
 		}
 	}
-	// t->now_file = file; /* 현재 프로세스가 실행 중인 파일을 저장 */
-	// file_deny_write(file);
 
 	/* Set up stack. */
 	if (!setup_stack(if_))
@@ -611,7 +612,7 @@ load(const char *file_name, struct intr_frame *if_)
 done:
 	/* We arrive here whether the load is successful or not. */
 
-	file_close(file);
+	// file_close(file);
 	return success;
 }
 
