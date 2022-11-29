@@ -254,17 +254,12 @@ int read_handler(int fd, void *buffer, unsigned size)
 		for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
 		{
 			struct file_fd *read_fd = list_entry(start, struct file_fd, fd_elem);
-			// if (read_fd->file == NULL)
-			// 	return -1;
 			if (read_fd->fd == fd)
 			{
-				// check_address(read_fd->file);
 				lock_acquire(&filesys_lock);
 				buff_size = file_read(read_fd->file, buffer, size);
 				lock_release(&filesys_lock);
-				// return buff_size;
 			}
-			// exit_handler(0);
 		}
 	}
 	return buff_size;
@@ -341,16 +336,14 @@ void close_handler(int fd)
 {
 	struct thread *curr = thread_current();
 	struct list_elem *start;
-	// start->fd_list = curr->fd_list;
 	for (start = list_begin(&curr->fd_list); start != list_end(&curr->fd_list); start = list_next(start))
 	{
 		struct file_fd *close_fd = list_entry(start, struct file_fd, fd_elem);
 		if (close_fd->fd == fd)
 		{
-
 			file_close(close_fd->file);
 			list_remove(&close_fd->fd_elem);
-			close_fd->fd = NULL;
+			// close_fd->fd = NULL;
 			// free(close_fd);
 		}
 	}

@@ -137,7 +137,12 @@ tid_t process_fork(const char *name, struct intr_frame *if_)
 	}
 	// 자식의 스레드를 가져온다. get_child 사용.
 	struct thread *child = get_child(tid);
+
 	sema_down(&child->fork_sema);
+	if (!thread_current()->check_child)
+	{
+		return -1;
+	}
 	return tid;
 }
 
@@ -248,21 +253,28 @@ __do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 			{
 				struct file_fd *child_fd = malloc(sizeof(struct file_fd));
 				child_fd->file = file_duplicate(parent_fd->file);
-				list_push_back(&current->fd_list, &child_fd->fd_elem);
 				child_fd->fd = parent_fd->fd;
+				list_push_back(&current->fd_list, &child_fd->fd_elem);
 			}
+			current->fd_count = parent->fd_count;
 		}
 		current->fd_count = parent->fd_count;
 	}
+	else
+		current->fd_count = parent->fd_count;
 
 	if_.R.rax = 0;
 	process_init();
 	sema_up(&current->fork_sema);
 	/* Finally, switch to the newly created process. */
 	if (succ)
+	{
+		parent->check_child = true;
 		do_iret(&if_);
+	}
 error:
 	// sema_up(&current->fork_sema);
+	parent->check_child = false;
 	exit_handler(TID_ERROR);
 }
 
@@ -285,6 +297,7 @@ int process_exec(void *f_name)
 	process_cleanup();
 
 	/* And then load the binary */
+
 	success = load(f_name, &_if);
 
 	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
@@ -336,12 +349,22 @@ void process_exit(void)
 	{
 		printf("%s: exit(%d)\n", curr->name, curr->exit_status);
 		file_close(curr->now_file);
+		curr->now_file = NULL;
+	}
+	struct list *exit_list = &curr->fd_list;
+	struct list_elem *start = list_begin(exit_list);
+	while (!list_empty(exit_list))
+	{
+		struct file_fd *exit_fd = list_entry(start, struct file_fd, fd_elem);
+		file_close(exit_fd->file);
+		start = list_remove(&exit_fd->fd_elem);
+		free(exit_fd);
 	}
 
 	sema_up(&curr->wait_sema);
 	sema_up(&curr->fork_sema);
-	sema_down(&curr->exit_sema);
 	process_cleanup();
+	sema_down(&curr->exit_sema);
 }
 
 /* Free the current process's resources. */

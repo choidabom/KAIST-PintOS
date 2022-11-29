@@ -120,6 +120,8 @@ struct thread
 	struct file *now_file;
 	struct lock file_lock;
 
+	bool check_child;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
