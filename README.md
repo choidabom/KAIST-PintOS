@@ -1,4 +1,4 @@
-# PintOS
+₩# PintOS
 
 Brand new pintos for Operating Systems and Lab (CS330), KAIST, by Youngjin Kwon.
 
@@ -21,7 +21,7 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 
 ### 11.11 금
 
-- #### KAIST 권영진 교수님 OS 강의
+- #### KAIST 권영진 교수님 OS 첫 번째 강의
 - ~~**공부로 도망치지 마세요.** from 코치님~~
 ### 11.12 토
 
@@ -105,18 +105,174 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 ### 11.18 금
 
 ### 11.19 토
+### Argument Passing 큰 그림 그리기
+<p align="center"><img width="60%" src=""/></p>
+
+- `init.c` 
+- init.c의 main 함수에서 `read_command_line()`함수를 호출하여 명령어를 읽어온다. -> argv
+명령어로 들어오는 인자의 형태는 명령어와 그 명령어의 대상이다. 
+- 예를 들어 인자가 1개만 들어오는 경우(args-single.ck)라면, argv는 `run 'args-single onearg'`의 형태를 가진다.
+- 호출된 명령어 parse_options를 통해 option에 따라 명령어를 적절히 parsing한다.
+- 명령어는 run_action 함수의 인자로 전달된다. argv안의 명령어 문자열에 있는 명령어 run은 run_task 함수를 호출한다.
+- run_task 함수에서 task = argv[1]로 정해진다. 그 이유는 명령어로 들어오는 인자의 형태는 명령어와 그 명령어의 대상이다. 따라서 명령어의 대상에 해당되는 인자인 `'args-single onearg'`가 `process_create_initd`의 인자가 된다.
+해당 인자는 프로그램 파일이름과 프로그램들의 인자들이 같이 위치한다. 따라서 프로그램 파일명과 인자들을 공백을 기준으로 parsing하여야 한다.
+
+- `process.c`
+- `process_create_initd()`의 인자로 입력받은 명령어의 대상(task = argv[1])이 들어온다. 해당 문자열은 thread_create의 인자로 들어가서 해당 인자를 이름으로 한 kernel 스레드를 생성한다. 해당 스레드는 생성된 이후 running thread가 되는 시점에 인자로 들어간 함수 initd를 호출한다.
+- `initd()` 함수는 `process_exec()`함수를 호출한다.
+- `process_exec()` 함수는 `load()`함수를 호출한다.
+- load함수에서 입력받은 인자를 parsing하고 해당 커널 스레드의 인터럽트 프레임에 인자의 주소를 저장하고, 이후 실행할 명령어의 주소를 스택에 저장한다.(if->rip)
+이때 filesys_open에 전달되는 file_name은 입력받은 인자를 공백으로 parsing할 때 등장하는 첫 번째 문자열이다.두 번째 문자열부터 인자가 된다.
+- 파싱한 문자열을 스택에 쌓는다. 스택은 주소가 감소하면서 확장한다.(위->아래). 인자 -> 8바이트 정렬을 맞추기 위한 공백 공간 -> 파싱한 인자의 스택 주소 -> 가짜 반환 주소 순으로 저장한다.
+
+
+**과정 중 헷갈렸던 부분과 알게 된 점**
+1. `userprog/process.c`의 `tid_t process_create_initd (const char *file_name)`
+- Q. tid를 반환하는 `thread_create` 함수에서 인자로 받은 함수가 언제 실행되는 것인가?
+  - `thread_create(file_name, PRI_DEFAULT, initd, fn_copy)`를 호출하며 새로운 kernel 스레드를 생성한다. 이 kernel 스레드는 `initd()` 함수를 thread routine으로 가지는 스레드로, 생성 후 ready list에 들어간 뒤, running thread가 되는 시점에 `initd()`를 실행한다.
 
 ### 11.20 일
+### Argument Passing
+
+- **목표: 입력받은 인자를 공백을 기준으로 파싱하기**
+- **문제 해결: strok_r함수를 이용하여 공백을 기준으로 파싱함.**
+1. 파싱한 인자의 첫 번째 문자열은 프로그램 이름이 된다. => process_name
+2. 파싱한 모든 문자열을 스택에 쌓는다. (스택의 주소를 감소시키면서)
+3. 문자열을 저장하고 8byte word-align을 맞춰주기 위해 남은 공간에 null을 넣어준다.
+4. 2단계에서 넣은 문자열들이 위치한 스택 주소를 넣어준다.
+5. 가짜 반환 주소를 넣어준다. 함수가 호출된 이후 return 된 이후 pc가 읽을 인스트럭션 주소를 return address로 넣는다.
+
+다만 해당 함수는 반환되지 않기 때문에 해당 return address로 이동하지 않는다. 하지만 다른 스택 프레임과 동일한 구조를 갖기 위해서 가짜 반환주소를 넣는다.
+
+- Argument Passing은 `load()`(in userprog/process.c)내에서 구현한다.
 
 ### 11.21 월
+### System Calls 
+- **`thread.h` 내의 struct fild_fd 선언과 struct thread 내 멤버 추가**
+```c
+struct file_fd
+{
+	int fd;					          /* fd: 파일 식별자 */
+	struct file *file;		    /* file */
+	struct list_elem fd_elem; /* list 구조체의 구성원 */
+};
+```
+- 파일을 open하게 되면 file을 open하고 이에 대응하는 fd를 갱신하여 mapping할 필요가 있음
+- 이를 위해 file과 fd를 멤버변수로 갖는 file_fd 구조체를 
+- open 할때는 새로운 file_fd 구조체를 만들고 file을 열고 fd를 갱신하여 저장함.
+- close 할때는 close 하려는 fd에 대응하는 file을 닫고 fd를 NULL로 변경함.
+
+```c
+struct thread
+{
+	....
+	struct list fd_list;			    /* file_fd 구조체를 저장하는 Doubley Linked List */
+	int fd_count;					        /* fd를 확인하기 위한 count*/
+	int exit_status;
+	struct semaphore fork_sema;   /* 자식 프로세스의 fork가 완료될 때까지 기다리도록 하기 위한 세마포어 */
+	struct semaphore wait_sema;   /* process가  */
+	struct semaphore exit_sema;   /* e */
+
+	struct list child_list;		    /* 자식 스레드를 보관하는 리스트 */
+	struct list_elem child_elem;  /* 자식 리스트 element */
+	struct file *now_file;        /* 현재 프로세스가 실행 중인 파일을 저장하기 위한 변수  */
+	....
+};
+```
+- open 된 파일을 확인하기 위한 fd를 저장하는 fd_list라는 list를 선언함. 
+- fd_elem은 fd_list라는 연결 리스트에 list_elem(fd_elem)으로 삽입되어 저장됨.
+- fd_count는 file을 열 때마다 갱신하기 위한 변수이다. 파일을 open할 때마다 fd_count를 1씩 증가시키고 증가된 fd_count를 fd로 할당한다. 그렇기에 open될 때마다 서로 다른 새로운 fd를 할당할 수 있게 한다.
+
+
 
 ### 11.22 화
+### System Calls
+- **목표: 총 14개의 구현해야할 syscall**
+- 프로세스 관련 system call
+  - `halt()`, `wait()`, `fork()`, `exit()`, `exec()`
+- 파일 관련 system call
+  - `open()`, `filesize()`, `close()`, `read()`, `write()`, `seek`(),` `tell()`, `create()`, `remove()`
+
+- **create()와 remove()를 제외한 파일 관련 system call들은 file descriptor를 반환하거나, file descriptor를 이용해서 file에 대한 작업을 수행한다.**
+- kernel은 file descriptor와 실제 file 구조체를 매핑하여 관리하며 이를 위한 도구가 바로 **fd table**이다. 
+
+### System Calls - halt(), exit()
+- `halt()`: pintos를 종료시키는 시스템 콜
+  - `power_off()`함수를 사용하여 pintos를 종료시켰다.
+- `exit()`: 현재 프로세스를 종료시키는 시스템 콜
+  - 스레드 구조체 안에 exit_status 멤버 변수를 선언하여 인자로 받은 종료 상태를 갱신한다.
+
+### Process Termination Message
+- `exit()` 함수를 호출했거나 다른 어떤 이유들로 유저 프로세스 종료 시 프로세스 이름과 exit code를 아래와 같이 지정된 형식으로 출력한다.
+  - `printf("%s: exit(%d)\n", ....);`
 
 ### 11.23 수
+### System Calls - filesize(),  seek(), tell()
+- `filesize()`: fd로 열려있는 파일 사이즈를 리턴해주는 시스템 콜
+ - 열려져 있는 file을 관리하는 `fd_list`를 순회하면서 찾으려는 fd와 mapping된 file을 찾는다.
+ - file의 크기를 byte단위로 반환하는 함수 `file_length()`를 호출한다.
+- `seek()` : fd로 열려있는 파일의 (읽고 쓸 위치를 알려주는) 포인터의 위치를 변경해주는 시스템 콜
+  - 열려져 있는 file을 관리하는 `fd_list`를 순회하면서 찾으려는 fd와 mapping된 file을 찾는다.
+  - file의 현재 위치를 인자로 들어간 position으로 변경시켜 주는 함수 `file_seek()`를 호출한다.
+- `tell()` : fd에서 읽히거나 써질 다음 바이트의 위치를 반환 
+  - 열려져 있는 file을 관리하는 `fd_list`를 순회하면서 찾으려는 fd와 mapping된 file을 찾는다.
+  - file의 현재 위치를 알려주는 함수 `file_tell()`를 호출한다.
+- ~~ `filesize()`, `seek()`, `tell()`은 시스템 콜이 잘 동작하는지 확인할 수 있는 test case 부제로 test를 돌릴 수 있는 시스템 콜에서 호출하는 방식으로 호출됨을 확인하였다.~~
 
 ### 11.24 목
-
+### System Calls - create(), remove()
+- `create()` : 파일을 생성하는 시스템 콜
+ - check_address함수를 선언하여 포인터가 가르키는 주소가 유저 영역에 존재하는지, 페이지가 할당되었는지 여부를 확인한다.
+ - 파일명 인자 file이 NULL일 경우 exit(-1)을 실행하도록 한다.
+ - file을 이름으로 하고 initial_size인자를 크기로 한 file을 생성하고, 성공여부를 반환하는 함수 `filesys_create()`를 호출 한다.
+ - 파일이 성공적으로 생성되면 true를 아니면 false를 반환한다.
+- `remove()`: 파일을 삭제하는 시스템 콜
+  - check_address함수를 선언하여 포인터가 가르키는 주소가 유저 영역에 존재하는지, 페이지가 할당되었는지 여부를 확인한다.
+  - file이라는 이름을 가진 파일을 삭제하고 성공여부를 반환하는 함수 `filesys_remove()`를 호출한다.
+  
 ### 11.25 금
+### System Calls - read()
+- `read()` : fd를 통해 열린 파일의 데이터를 읽는 시스템 콜. 
+  - fd가 0일 때는 키보드의 데이터를 읽어 버퍼에 저장하고 그 크기를 반환. -> input_getc() 활용
+  - fd가 0보다 작거나 비어 있거나 1일 경우에는 read에서 유효하지 않은 fd이므로 exit(-1)
+  - 파일에 동시 접근이 이뤄질 수 있으므로 이를 방지하기 위해 lock 구조체 filesys_lock을 선언하여 활용.
+  - 읽은 데이터의 크기를 byte단위로 반환하는 함수, `file_read()` 함수를 호출함.
+
 
 ### 11.26 토
+### System Calls - write()
+- `write()` : write 해주는 시스템 콜 (버퍼) => (fd를 통해 열린 파일의 내용)
+  - 
+### Deny Write on Executables
+- **문제: 실행 중인 파일에 쓰기 작업을 수행하면 예상치 못한 결과 얻을 수 있다.**
+- **목표: 실행 중인 파일에 쓰기 작업을 수행하지 않도록 하는 것**
+- **문제 해결: 함수 활용**
+  - `file_deny_write()`: 파일을 open 할 때, 실행 파일에 대해 쓰기를 방지한다. 메모리에 파일을 load한 후에 수정하면 안 되기 때문이다. 이를 통해, file synchronization Issue를 해결할 수 있다. 
+  - `file_allow_write()`: 파일의 데이터가 변경되는 것을 허락하는 함수이다. `file_close()` 함수 호출 시 해당 함수가 호출된다.
 
+### 11.27 일
+### System Calls - exec(), fork()
+- `exec()` : 현재 프로세스를 인자로 주어진 이름을 갖는 실행 파일로 변경하는 시스템 콜.
+  - 새로운 file을 palloc_get_page를 통해 주소를 할당한다.
+  - 인자로 주어진 file_name 문자열을 strlcpy를 통해 새롭게 생성된 file 문자열에 복사한다.
+  - file을 실행한다. -> `process_exec()` 호출한다.
+  - process_exec()의 반환값이 -1이면 성공하지 못했다는 의미이므로 -1을 반환한다.
+
+- `fork()` : 현재 프로세스의 복제본인 프로세스를 생성하는 시스템 콜
+  - 자식 프로세스의 tid를 반환해야함 유효한 tid가 아닌 경우 0을 반환해야 함.
+
+
+### 11.28 월
+#### KAIST 권영진 교수님 OS 두 번째 강의
+
+### System Calls - wait()
+- `wait()` : 
+
+### 고난과 역경의 과정이 발생했던 다수의 이유
+- test case fail로 인한 fork_handler(), exit_handler(), exec_handler() 수정
+- 
+
+
+### 11.29 화
+#### Project 2 결과
+- 11:00 ~ 12:00 발표 진행

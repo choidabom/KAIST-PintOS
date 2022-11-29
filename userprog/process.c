@@ -61,6 +61,7 @@ tid_t process_create_initd(const char *file_name)
 
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
+	/*fn_copy => file_name을 fn_copy에 복사하기 위해 메모리 할당 */
 	fn_copy = palloc_get_page(0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
@@ -267,6 +268,7 @@ __do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 	process_init();
 	sema_up(&current->fork_sema);
 	/* Finally, switch to the newly created process. */
+
 	if (succ)
 	{
 		parent->check_child = true;
@@ -508,15 +510,12 @@ load(const char *file_name, struct intr_frame *if_)
 	}
 
 	/* Open executable file. */
-	// lock_acquire(&t->file_lock);
 	file = filesys_open(process_name);
 	if (file == NULL)
 	{
-		// lock_release(&t->file_lock);
 		printf("load: %s: open failed\n", process_name);
 		goto done;
 	}
-	// lock_release(&t->file_lock);
 
 	/* Read and verify executable header. */
 	if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 0x3E // amd64
@@ -605,7 +604,7 @@ load(const char *file_name, struct intr_frame *if_)
 		argv[i] = stack_ptr;
 	}
 
-	// word-align - 16의 배수로 맞춘다(padding)
+	// word-align - 8의 배수로 맞춘다(padding)
 	// x86-64의 stack alignmet 규칙에 따르면 return address를 제외하고 직전까지의 상황에서 %rsprk 16
 	if ((if_->rsp - stack_ptr) % 8)
 	{

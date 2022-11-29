@@ -189,6 +189,7 @@ tid_t thread_create(const char *name, int priority,
 	ASSERT(function != NULL);
 
 	/* Allocate thread. */
+	/* palloc_get_page(): 물리 메모리를 할당하고 이때 반환되는 주속는 커널 가장 주소 */
 	t = palloc_get_page(PAL_ZERO);
 	if (t == NULL)
 		return TID_ERROR;
@@ -475,7 +476,6 @@ init_thread(struct thread *t, const char *name, int priority)
 	sema_init(&t->fork_sema, 0);
 	sema_init(&t->wait_sema, 0);
 	sema_init(&t->exit_sema, 0);
-	lock_init(&t->file_lock);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

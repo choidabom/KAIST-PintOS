@@ -20,7 +20,7 @@ void syscall_handler(struct intr_frame *);
 void check_address(void *addr);
 void exit_handler(int status);
 tid_t fork_handler(const char *thread_name, struct intr_frame *f);
-int exec_handler(const char *file);
+int exec_handler(const char *file_name);
 int wait_handler(tid_t tid);
 bool create_handler(const char *file, unsigned initial_size);
 bool remove_handler(const char *file);
@@ -135,7 +135,7 @@ void exit_handler(int status)
 	thread_exit();
 }
 /* thread_name이라는 이름을 가진 (현재 프로세스의 복제본인) 새 프로세스를 만들어주는 시스템 콜 */
-/* 자식 프로세스의 pid를 반환해야 함. 유효한 pid가 아닌 경우 0을 반환해야함. */
+/* 자식 프로세스의 tid를 반환해야 함. 유효한 tid가 아닌 경우 0을 반환해야함. */
 tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 {
 
@@ -154,14 +154,14 @@ tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 	// 	?
 }
 
-/* 현재 프로세스가 cmd_line에서 이름이 주어지는 실행가능한 프로세스로 변경된다.  */
-int exec_handler(const char *file)
+/* 현재 프로세스를 인자로 주어진 이름을 갖는 실행 파일로 변경한다.  */
+int exec_handler(const char *file_name)
 {
-	check_address(file);
-	char *file_name = palloc_get_page(PAL_ZERO);
-	strlcpy(file_name, file, strlen(file) + 1);
+	check_address(file_name);
+	char *file = palloc_get_page(PAL_ZERO);
+	strlcpy(file, file_name, strlen(file_name) + 1);
 
-	if (process_exec(file_name) == -1)
+	if (process_exec(file) == -1)
 	{
 		return -1;
 	}
@@ -235,14 +235,7 @@ int read_handler(int fd, void *buffer, unsigned size)
 
 	if (fd == 0)
 	{
-		char word;
-		for (buff_size = 0; buff_size < size; buff_size++)
-		{
-			word = input_getc();
-			if (word == '\0')
-				break;
-		}
-		// return input_getc();
+		return input_getc();
 	}
 	else if (fd < 0 || fd == NULL || fd == 1)
 	{
