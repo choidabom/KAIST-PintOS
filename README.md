@@ -1,4 +1,4 @@
-₩# PintOS
+# PintOS
 
 Brand new pintos for Operating Systems and Lab (CS330), KAIST, by Youngjin Kwon.
 
@@ -103,10 +103,11 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 ### WIL (Weekly I Learned)
 
 ### 11.18 금
+- Git book 과제 설명서 공부 
 
 ### 11.19 토
 ### Argument Passing 큰 그림 그리기
-<p align="center"><img width="60%" src=""/></p>
+<p align="center"><img width="70%" src="https://user-images.githubusercontent.com/48302257/204595998-f91011f5-cbd8-482a-99ab-19afae17009e.png"/></p>
 
 - `init.c` 
 - init.c의 main 함수에서 `read_command_line()`함수를 호출하여 명령어를 읽어온다. -> argv
@@ -143,6 +144,7 @@ The manual is available at https://casys-kaist.github.io/pintos-kaist/.
 5. 가짜 반환 주소를 넣어준다. 함수가 호출된 이후 return 된 이후 pc가 읽을 인스트럭션 주소를 return address로 넣는다.
 
 다만 해당 함수는 반환되지 않기 때문에 해당 return address로 이동하지 않는다. 하지만 다른 스택 프레임과 동일한 구조를 갖기 위해서 가짜 반환주소를 넣는다.
+<p align="center"><img width="70%" src="https://user-images.githubusercontent.com/48302257/204596426-353ede05-f05e-4164-a0d2-8f0e1ca2cf10.png"/></p>
 
 - Argument Passing은 `load()`(in userprog/process.c)내에서 구현한다.
 
@@ -270,7 +272,6 @@ struct thread
 
 ### 고난과 역경의 과정이 발생했던 다수의 이유
 - test case fail로 인한 fork_handler(), exit_handler(), exec_handler() 수정
-- 
 
 
 ### 11.29 화
