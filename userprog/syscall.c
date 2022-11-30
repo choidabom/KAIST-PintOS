@@ -142,16 +142,6 @@ tid_t fork_handler(const char *thread_name, struct intr_frame *f)
 	return process_fork(thread_name, f);
 
 	// fork() 의 반환 값이 0보다 작으면 오류.->TID_ERROR를 반환한다.fork() 의 반환 값이 0이면 자식 프로세스.fork() 의 반환 값이 0보다 크면 부모 프로세스.thread_create를 해서 자식프로세스(스레드) 를 생성한다.
-
-	// 1. 자식 프로세스의 p_tid를 부모프로세스로 초기화 해줘야한다.-- > thread_create() 안의 init_thread에서 연결해줌 .
-	// 2. 자식 프로세스(스레드) 를 부모프로세스의 자식 리스트에 넣어줘야 한다.언제?
-	// process_exec을 해서 자식 프로세스를 실행한다
-	// 	? semadown을 한단 말이지..
-
-	// 	  부모프로세스를 실행할 수 있다.반환값은 자식
-	// 	  프로세스(스레드) 의 tid_t인데.자식
-	// 	  프로세스(스레드) 의 tid를 어캐 가져오지..
-	// 	?
 }
 
 /* 현재 프로세스를 인자로 주어진 이름을 갖는 실행 파일로 변경한다.  */

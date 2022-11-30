@@ -168,16 +168,16 @@ struct file_fd
 struct thread
 {
 	....
-	struct list fd_list;			    /* file_fd 구조체를 저장하는 Doubley Linked List */
-	int fd_count;					        /* fd를 확인하기 위한 count*/
-	int exit_status;
-	struct semaphore fork_sema;   /* 자식 프로세스의 fork가 완료될 때까지 기다리도록 하기 위한 세마포어 */
-	struct semaphore wait_sema;   /* process가  */
-	struct semaphore exit_sema;   /* e */
+	struct list fd_list;		/* file_fd 구조체를 저장하는 Doubley Linked List */
+	int fd_count;			/* fd를 확인하기 위한 count*/
+	int exit_status
+	struct semaphore fork_sema;   	/* 자식 프로세스의 fork가 완료될 때까지 기다리도록 하기 위한 세마포어 */
+	struct semaphore wait_sema;   
+	struct semaphore exit_sema;  
 
-	struct list child_list;		    /* 자식 스레드를 보관하는 리스트 */
-	struct list_elem child_elem;  /* 자식 리스트 element */
-	struct file *now_file;        /* 현재 프로세스가 실행 중인 파일을 저장하기 위한 변수  */
+	struct list child_list;		/* 자식 스레드를 보관하는 리스트 */
+	struct list_elem child_elem;  	/* 자식 리스트 element */
+	struct file *now_file;        	/* 현재 프로세스가 실행 중인 파일을 저장하기 위한 변수  */
 	....
 };
 ```
@@ -193,7 +193,7 @@ struct thread
 - 프로세스 관련 system call
   - `halt()`, `wait()`, `fork()`, `exit()`, `exec()`
 - 파일 관련 system call
-  - `open()`, `filesize()`, `close()`, `read()`, `write()`, `seek`(),` `tell()`, `create()`, `remove()`
+  - `open()`, `filesize()`, `close()`, `read()`, `write()`, `seek`(), `tell()`, `create()`, `remove()`
 
 - **create()와 remove()를 제외한 파일 관련 system call들은 file descriptor를 반환하거나, file descriptor를 이용해서 file에 대한 작업을 수행한다.**
 - kernel은 file descriptor와 실제 file 구조체를 매핑하여 관리하며 이를 위한 도구가 바로 **fd table**이다. 
@@ -262,16 +262,38 @@ struct thread
 
 - `fork()` : 현재 프로세스의 복제본인 프로세스를 생성하는 시스템 콜
   - 자식 프로세스의 tid를 반환해야함 유효한 tid가 아닌 경우 0을 반환해야 함.
-
-
+  - process_fork()를 호출하여 부모의 데이터와 유저레벨의 인터럽트 프레임을 복사한 자식 스레드를 만든다.
+    - thread_create를 통해 자식 스레드를 생성한다. 자식 스레드는 생성된 뒤 ready_list에 들어가 running thread가 될 때 인자로 들어간 함수 __do_fork를 실행한다.
+    - do_fork()를 실행할 때 인터럽트가 호출될 당시 레지스터에서 작업하던 context 정보를 그대로 복사하여야 한다. 즉 부모 프로세스의 정보를 그대로 복사한다는 의미이다. 이때 주의할 점은 복사할 것은 부모 프로세스의 userland context이다.
+      - syscal-entry.S를 보면 9행의`movq %rsp, %rbx`를 통해 rbx에 유저스택포인터가 저장되고 있으며, 10-12행의 `movabs $tss, %r12` -> `movq (%r12), %r12` -> `movq 4(%r12), %rsp`를 통해 rsp에는 커널 스택 포인터가 저장된다.
+      - 따라서 intf_frame tf->rsp에는 커널스택의 정보가 담겨 있고 syscall_handler의 인자 intr_fram f가 유저스택의 정보를 갖고 있다. 그래서 이 인자를 그대로 넘겨 주어야 한다.
+      - 이를 위해 구조체 `fork_data`를 선언하였다. `fork_data` 구조체의 멤버변수로 `thread *parent`와 `intr_frame *user_level_f`를 활용하여 부모 스레드와 유저레벨 인터럽트를 저장한 후 해당 구조체를 `__do_fork`의 인자로 전달하였다.
+    - `__do_fork`함수 내부에서 `pml4_for_each()`함수를 통해 인자로 `duplicate_pte()`함수를 실행하여 실행부모의 유저 메모리 공간을 복사하여 새로 생성한 자식의 페이지에 넣어준다.
+    - 또한 부모 프로세스의 `fd_list`의 요소들과 `fd_count`를 복사하여준다.
+    - 세마포어 `fork_sema`를 활용해서 자식 프로세스에 대한 복사가 완료될때까지 `process_fork`함수가 끝나지 않도록 하였다.
+  - 자식 스레드의 반환 값은 0이고 자식 스레드가 생성이 실패할 때 `TID_ERROR`를 반환하도록 한다.
+  
 ### 11.28 월
 #### KAIST 권영진 교수님 OS 두 번째 강의
 
 ### System Calls - wait()
 - `wait()` : 
 
-### 고난과 역경의 과정이 발생했던 다수의 이유
-- test case fail로 인한 fork_handler(), exit_handler(), exec_handler() 수정
+### 고난과 역경의 과정이 발생했던 다수의 이유 
+1. `process_exit()`에서 open되어있는 파일을 close 하지 않았던 문제
+```c
+	struct list *exit_list = &curr->fd_list;
+	struct list_elem *start = list_begin(exit_list);
+	while (!list_empty(exit_list))
+	{
+		struct file_fd *exit_fd = list_entry(start, struct file_fd, fd_elem);
+		file_close(exit_fd->file);
+		start = list_remove(&exit_fd->fd_elem);
+		free(exit_fd);
+	}
+``` 
+- `process_exit()` 즉, 프로세스를 종료해야할 시점에서 열린 모든 파일을 close 해주어야한다. fd_list에 있는 현재 스레드의 fd_list(exit_list)가 빌 때까지 while문을 돌면서 열린 파일들을 close 해주고, fd_elem을 list에서 지움으로써 해당 파일이 fd_list에서 삭제하도록 해주었다. 
+- fork와 open을 할 때 file_fd 선언을 위해 malloc을 해주었기 때문에 exit할 때 free를 해줌으로써 메모리 누수가 생기지 않도록 한다.
 
 
 ### 11.29 화

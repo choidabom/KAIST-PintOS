@@ -362,9 +362,9 @@ void process_exit(void)
 		free(exit_fd);
 	}
 
+	process_cleanup();
 	sema_up(&curr->wait_sema);
 	sema_up(&curr->fork_sema);
-	process_cleanup();
 	sema_down(&curr->exit_sema);
 }
 
