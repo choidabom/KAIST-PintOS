@@ -160,15 +160,12 @@ duplicate_pte(uint64_t *pte, void *va, void *aux)
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately.
-		부모의 page가 kernel page인 경우 즉시 리턴한다.  */
+		만약 va가 kernel address라면 => true를 리턴  */
 	if (is_kernel_vaddr(va))
 	{
 		return true;
 	}
-	// if (is_kern_pte(pte))
-	// {
-	// 	return true;
-	// }
+
 	/* 2. Resolve VA from the parent's page map level 4.
 		부모 스레드 내 멤버인 pml4를 이용해 부모 페이지를 불러온다. */
 	parent_page = pml4_get_page(parent->pml4, va);
@@ -233,6 +230,7 @@ __do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 	if (!supplemental_page_table_copy(&current->spt, &parent->spt))
 		goto error;
 #else
+	/* pml4_for_each()를 활용해서 user memory space 전체와 그에 대응하는 pagetable 구조체를 복사한다.*/
 	if (!pml4_for_each(parent->pml4, duplicate_pte, parent))
 		goto error;
 #endif
@@ -268,7 +266,8 @@ __do_fork(struct fork_data *aux) // aux 인자로 struct fork_data 가 들어옴
 	process_init();
 	sema_up(&current->fork_sema);
 	/* Finally, switch to the newly created process. */
-
+	/* do_iret을 통해서 interrupt frame에 있는 정보를 register로 보내준다.
+	duplicate_pte와 file_duplicate 등을 통해서 interrupt frame의 모든 정보를 자식 process에 복사해주었기 때문이다. 그래서 그냥 register에 올려주기만 하면 된다.  */
 	if (succ)
 	{
 		parent->check_child = true;

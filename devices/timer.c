@@ -75,7 +75,6 @@ void timer_calibrate(void)
 }
 
 /* Returns the number of timer ticks since the OS booted. */
-// os가 부팅되고 나서
 int64_t
 timer_ticks(void)
 {

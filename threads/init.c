@@ -75,18 +75,19 @@ int main(void)
 	/* Break command line into arguments and parse options. */
 	/* read_command_line()에서 입력한 input 코드를 읽어들임 */
 	argv = read_command_line();
+	/* 명령어에 옵션들이 있으면, 옵션에 따라 필요한 flag들을 업데이트 */
 	argv = parse_options(argv);
 
 	/* Initialize ourselves as a thread so we can use locks,
 	   then enable console locking. */
-	/* thread, console, malloc, paging, tss, gdt 등등 초기화 */
-	thread_init();
-	console_init();
+	/* thread_init()을 통해 initial thread인 main 스레드가 생성되나? => ok*/
+	thread_init();	/* thread_init을 통해 main 스레드를 생성 */
+	console_init(); /* console_init을 통해 console_lock을 init*/
 
 	/* Initialize memory system. */
 	/* 메모리 시스템 초기화 */
-	mem_end = palloc_init();
-	malloc_init();
+	mem_end = palloc_init(); /* 페이지 할당기를 초기화한 후, 메모리 사이즈를 반환 */
+	malloc_init();			 /* malloc()을 통한 메모리 할당을 수행하기 위해 초기화 */
 	paging_init(mem_end);
 
 #ifdef USERPROG
@@ -124,10 +125,11 @@ int main(void)
 	printf("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
-
+	/* run_actions() 함수를 통해 인자로 넘겨받은 테스트 이름과 일치하는 테스트를 수행 */
 	run_actions(argv);
 
 	/* Finish up. */
+	/* (필요시) power_off 및 메인 스레드 종료 */
 	if (power_off_when_done)
 		power_off();
 	thread_exit();
@@ -150,6 +152,9 @@ bss_init(void)
 /* Populates the page table with the kernel virtual mapping,
  * and then sets up the CPU to use the new page directory.
  * Points base_pml4 to the pml4 it creates. */
+/* 인자로 메모리 사이즈를 받아서 페이지 테이블에 커널 가상 매핑을 덮어씌운 후 새로운 페이지 디렉토리를 사용할 수 있도록 CPU를 셋업한다.
+페이지 테이블을 커널 가상 매핑으로 덮어씌운 후 CPU가 새 페이지 디렉토리를 사용하도록 설정한다.
+	base_pml4라는 포인터는 pml4를 가리키게 된다. */
 static void
 paging_init(uint64_t mem_end)
 {

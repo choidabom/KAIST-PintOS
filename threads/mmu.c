@@ -113,6 +113,9 @@ pml4e_walk(uint64_t *pml4e, const uint64_t va, int create)
  * virtual addresses, but none for user virtual addresses.
  * Returns the new page directory, or a null pointer if memory
  * allocation fails. */
+/* 	새로운 페이지 테이블을 생성하여 리턴합니다.
+	새 페이지 테이블은 Pintos의 표준 커널 가상 페이지 매핑을 담고 있지만,
+	유저 가상 매핑은 담고 있지 않습니다. 메모리 획득이 불가능하다면 널 포인터를 리턴합니다. */
 uint64_t *
 pml4_create(void)
 {
@@ -222,6 +225,8 @@ pdpe_destroy(uint64_t *pdpe)
 }
 
 /* Destroys pml4e, freeing all the pages it references. */
+/* 페이지 테이블 자신과 매핑된 프레임을 포함해서, pml4가 가진 모든 리소스를 해제(free)시킨다.
+이 함수는 모든 단계의 리소스들을 해제하기 위해서 pdpe_destory, pdgir_destory, pt_destory를 재귀적으로 호출한다. */
 void pml4_destroy(uint64_t *pml4)
 {
 	if (pml4 == NULL)
@@ -237,6 +242,7 @@ void pml4_destroy(uint64_t *pml4)
 
 /* Loads page directory PD into the CPU's page directory base
  * register. */
+/* pml4를 활성화시킨다. 활성화된 페이지 테이블은 CPU가 메모리 참조를 중계하는데에 쓰인다. */
 void pml4_activate(uint64_t *pml4)
 {
 	lcr3(vtop(pml4 ? pml4 : base_pml4));
