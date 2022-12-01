@@ -66,7 +66,8 @@ typedef int tid_t;
  *           |               name              |
  *           |              status             |
  *      0 kB +---------------------------------+
- *
+ * 왜 grow downward?
+ * => 중간에 있는 공간을 share 할 수 있게 초기 설계를 했기 때문에 관습적으로 이어짐
  * The upshot of this is twofold:
  *
  *    1. First, `struct thread' must not be allowed to grow too
@@ -103,7 +104,13 @@ struct thread
 
 	int64_t wakeup_tick; /* 깨어나야할 시간을 저장해주는 변수 */
 	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;			/* List element. */
+	struct list_elem elem; /* List element. */
+	// run queue의 원소로 사용되거나 semaphore wait의 원소로 사용됨
+	// 동시에 두 가지 기능을 할 수 있는 이유는 두 기능이 Mutually exclusive이기 때문이다.
+	// run queue에 들어가려면 ready state이어야 하고
+	// semaphore wait lsit에 들어가려면 block state 이어야 한다.
+	// 스레드가 동시에 두 가지 state를 가질 수 없으므로 elem을 통해 두 가지 작업을 수행해도 문제가 생기지 않는다.
+
 	int init_priority;				/* 자기 자신의 초기 priority 저장*/
 	struct lock *wait_on_lock;		/* 획득하고자 하는 lock의 주소를 저장*/
 	struct list_elem donation_elem; /* donate할때 확장할 priority의 자료형 */
