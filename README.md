@@ -321,7 +321,7 @@ struct thread
 
 ### 고난과 역경의 과정이 발생했던 다수의 이유
 
-1. `process_exit()`에서 open되어있는 파일을 close 하지 않았던 문제
+1. **`process_exit()`에서 open되어있는 파일을 close 하지 않았던 문제**
 
 ```c
 	struct list *exit_list = &curr->fd_list;
@@ -339,12 +339,16 @@ struct thread
   fd_list에 있는 현재 스레드의 fd_list(exit_list)가 빌 때까지 while문을 돌면서 열린 파일들을 close 해주고, fd_elem을 list에서 지움으로써 해당 파일이 fd_list에서 삭제하도록 해주었다.
 - fork와 open을 할 때 file_fd 선언을 위해 malloc을 해주었기 때문에 exit할 때 free를 해줌으로써 메모리 누수가 생기지 않도록 한다.
 
-2. `write()`와 `read()`를 할 때 입력받는 인자 **buff가 올바른 address 인지 체크하지 않았던 문제**
+2. **`write()`와 `read()`를 할 때 입력받는 인자 buff가 올바른 address 인지 체크하지 않았던 문제**
 
 - buffer => 기록할 데이터를 저장한 버퍼의 주소 값이 유저 가상 공간도 아니거나, 페이지가 할당되어있지 않거나, 주소가 NULL인 경우를 체크해준다.
+
+3. **`process_wait()`와 `process_exit()` sema_down과 sema_up의 순서파악**
+<p align="center"><img width="80%" src="https://user-images.githubusercontent.com/48302257/204840230-f3f61249-f09d-4996-839c-788266333923.png"/></p>
 
 ### 11.29 화
 
 #### Project 2 결과
 
 - 11:00 ~ 12:00 발표 진행
+
